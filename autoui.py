@@ -18,12 +18,15 @@ class AutoUI(MobileAgent):
         self.agent_exec_trace_path = CONFIG.AUTOUI_EXEC_TRACE_PATH
 
     def load_predicted_action_by_episode(self, episode: str) -> Optional[List[Action]]:
+        '''extracts the action sequence from an agent execution trace. This is used for the two baseline evaluation approaches involving only action match.'''
         exec_trace: TaskTrace = self.load_exec_trace_by_episode(episode)
         if exec_trace:
             return [ui_state.action for ui_state in exec_trace]
         return None
 
+
     def load_exec_trace_by_episode(self, episode: str) -> Optional[TaskTrace]:
+        '''takes a string-format episode as the input, and returns a TaskTrace object containing all recorded information during executing the task on AgentEnv. Agents should have their own implementation for this method, such as specifying the path of agent execution traces.'''
         helper = DatasetHelper(CONFIG.EPI_METADATA_PATH, CONFIG.GR_DATASET_PATH)
         category = helper.get_category_by_episode(episode)
         if category == TaskCategory.WEBSHOPPING:
@@ -77,6 +80,7 @@ if __name__ == "__main__":
             epi_metadata_path=CONFIG.EPI_METADATA_PATH,
             gr_dataset_path=CONFIG.GR_DATASET_PATH,
             options={
+                # only tasks of their categories in this list will be evaluated
                 "categories": [
                     TaskCategory.GENERAL,
                     TaskCategory.GOOGLEAPPS,
@@ -87,6 +91,12 @@ if __name__ == "__main__":
                 "check_fuzzy_match": True,
                 "check_exact_match": True,
                 "check_system_state": True,
+                # only evaluate selected tasks with the following episodes
+                # "episodes": [
+                #     "epi1",
+                #     "epi2",
+                #     "..."
+                # ],
             },
         )
         t.run_evaluation()
@@ -108,6 +118,7 @@ if __name__ == "__main__":
                     TaskCategory.WEBSHOPPING,
                     TaskCategory.GENERATED,
                 ],
+                
             },
         )
         t.run_evaluation()

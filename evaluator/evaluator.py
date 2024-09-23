@@ -1,3 +1,4 @@
+'''Call the evaluator.run_evaluation() method and evaluator.report_stats() to get evaluation results. Evaluation results will be dumped in the dumped_stats folder named [evaluator_name]_[agent_name]_[time].csv'''
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -90,6 +91,19 @@ class BaseEvaluator(ABC):
     ) -> Tuple[bool, Optional[FailedReason]]:
         pass
 
+
+    '''The evaluator.report_stats() method has three optional parameters for easily evaluating the accuracy of different evaluation methods.
+
+    human_eval_path: Path of the CSV file that contains human validation results on agent execution traces. This is used for comparing results from evaluation methods and human validation. Default value: None, indicating no accuracy-related metrics will be reported.
+
+    episode,human
+    47574332150552188748,0
+    53818457957765811092,1
+    88323620415993082184,0
+    09598740612387056736,1
+    only_human_eval_positive: Evaluate task execution traces only when they are validated as completed in human validation. Default value: False.
+
+    suffix: Add a suffix to the dumped statistics file. The name of the dumped file will be [evaluator_name]_[agent_name]_[time]_[suffix].csv. Default value: "".'''
     def report_stats(
         self,
         human_eval_path: str = None,
