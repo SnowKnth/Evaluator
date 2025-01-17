@@ -15,6 +15,7 @@ class Agent(Enum):
     AUTOUI = "Auto-UI"
     AUTODROID = "AutoDroid"
     COCOAGENT = "CoCoAgent"
+    RASSDROID = "RASSDroid"
 
 
 class TaskCategory(Enum):
@@ -295,6 +296,8 @@ class DatasetHelper:
         with open(action_file) as f:
             action_repr = f.read()
         action_repr = action_repr.split("|")
+        if (len(action_repr)==1):
+            return action_repr
         action_type = action_repr[0]
         if action_repr[2] != "NULL":
             pattern = r"\[(-?\d+\.\d+),?\s+(-?\d+\.\d+)\]"
