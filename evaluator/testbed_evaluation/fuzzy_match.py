@@ -22,7 +22,7 @@ def compare_entire_ui_vh(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
         gr_views, exec_views, threshold=0.85
     )
     if similar:
-        print(
+        logging.info(
             f"[screen fuzzy match] success: '{gr_ui_state.screenshot_path}' with '{exec_ui_state.screenshot_path}', similarity: {similarity}"
         )
 

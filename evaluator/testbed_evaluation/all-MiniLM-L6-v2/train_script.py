@@ -97,7 +97,7 @@ def train_function(index, args, queue):
     for global_step in tqdm.trange(args.steps, disable=not xm.is_master_ordinal()):
         #### Get the batch data
         batch = queue.get()
-        # print(index, "batch {}x{}".format(len(batch), ",".join([str(len(b)) for b in batch])))
+        # logging.info(index, "batch {}x{}".format(len(batch), ",".join([str(len(b)) for b in batch])))
 
         if len(batch[0]) == 2:  # (anchor, positive)
             text1 = tokenizer(
@@ -206,9 +206,9 @@ def produce_data(args, queue, filepaths, dataset_indices):
         global_batch_size / args.datasets_per_batch
     )  # How many datasets per batch
     num_same_dataset = int(size_per_dataset / args.batch_size)
-    print("producer", "global_batch_size", global_batch_size)
-    print("producer", "size_per_dataset", size_per_dataset)
-    print("producer", "num_same_dataset", num_same_dataset)
+    logging.info("producer", "global_batch_size", global_batch_size)
+    logging.info("producer", "size_per_dataset", size_per_dataset)
+    logging.info("producer", "num_same_dataset", num_same_dataset)
 
     datasets = []
     for filepath in filepaths:
@@ -345,7 +345,7 @@ if __name__ == "__main__":
 
     logging.info("Output: " + args.output)
     if os.path.exists(args.output):
-        print("Output folder already exists.")
+        logging.info("Output folder already exists.")
         input("Continue?")
 
     # Write train script to output path
@@ -378,15 +378,15 @@ if __name__ == "__main__":
     p.start()
 
     # Run training
-    print("Start processes:", args.nprocs)
+    logging.info("Start processes:", args.nprocs)
     xmp.spawn(
         train_function, args=(args, queue), nprocs=args.nprocs, start_method="fork"
     )
-    print("Training done")
-    print(
+    logging.info("Training done")
+    logging.info(
         "It might be that not all processes exit automatically. In that case you must manually kill this process."
     )
-    print("With 'pkill python' you can kill all remaining python processes")
+    logging.info("With 'pkill python' you can kill all remaining python processes")
     p.kill()
     exit()
 

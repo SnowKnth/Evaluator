@@ -153,7 +153,7 @@ def _plot_action(
         text = "Set episode status as IMPOSSIBLE"
         _add_text(text, screen_width, screen_height, ax)
     else:
-        print("Action type not supported")
+        logging.info("Action type not supported")
 
 
 def plot_example(

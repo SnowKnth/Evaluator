@@ -226,7 +226,7 @@ class TestCheckImgMatch(unittest.TestCase):
                 result = _check_img_exact_match(
                     annotated_ui_node, gr_screenshot_path, exec_screenshot_path, bound
                 )
-                print(
+                logging.info(
                     f"Testing with bound {bound} and paths {test_case['gr_image_path']} vs {test_case['exec_image_path']}, Result: {result}"
                 )
                 self.assertEqual(result, test_case["expected"])

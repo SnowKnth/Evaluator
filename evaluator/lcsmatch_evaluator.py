@@ -45,7 +45,7 @@ class LCSMatchEvaluator(BaseEvaluator):
         try:
             gt_actions, gt_ui_positions = self._get_all_actions_uipositions(gr_trace)
         except:
-            print("Failed to extract ui positions")
+            logging.info("Failed to extract ui positions")
             return False, FailedReason.UI_POSITIONS_NOT_FOUND
 
         exec_trace: TaskTrace = self.agent.load_exec_trace_by_episode(episode)
@@ -56,7 +56,7 @@ class LCSMatchEvaluator(BaseEvaluator):
                 exec_trace
             )
         except:
-            print("Failed to extract ui positions")
+            logging.info("Failed to extract ui positions")
             return False, FailedReason.UI_POSITIONS_NOT_FOUND
 
         MAX_STEPS = 30
@@ -132,7 +132,7 @@ class LCSMatchEvaluator(BaseEvaluator):
         """
         screen_width, screen_height = Image.open(screenshot_path).size
         ui_positions = extract_ui_positions_from_vh(vh_path).astype(float)
-        # print(f"extracting {len(ui_positions)} UI positions from {vh_path}")
+        # logging.info(f"extracting {len(ui_positions)} UI positions from {vh_path}")
         if len(ui_positions) == 0:
             return np.array([])
         # normalize every single np.ndarray in ui_positions according to w, h

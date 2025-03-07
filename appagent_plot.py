@@ -109,4 +109,4 @@ if __name__ == "__main__":
         try:
             plot_by_folder(os.path.join(path, folder))
         except Exception as e:
-            print(f"error: {e}")
+            logging.info(f"error: {e}")

@@ -69,7 +69,7 @@ if __name__ == "__main__":
         task_description: str = helper.get_task_description_by_episode(epi)
         trace: TaskTrace = helper.load_groundtruth_trace_by_episode(epi)
         screenshot_paths: List[str] = [ui_state[0] for ui_state in trace]
-        print(screenshot_paths)
+        logging.info(screenshot_paths)
         vhs: List[str] = [ui_state[1] for ui_state in trace]
         step_id = 0
         for actions in actions_list:
@@ -77,14 +77,14 @@ if __name__ == "__main__":
                 current_actions = actions
                 break
         if current_actions is None:
-            print("find episode error:", epi)
+            logging.info("find episode error:", epi)
             continue
         for screenshot_path in screenshot_paths:
             img = Image.open(screenshot_path)
             img = img.resize((540, 1140))
             img_rgb = img.convert("RGB")
             img_array = np.array(img_rgb)
-            # print(img_array.shape)
+            # logging.info(img_array.shape)
             current_episode["image"] = img_array
             current_episode["episode_id"] = epi
             current_episode["step_id"] = step_id
@@ -103,4 +103,4 @@ if __name__ == "__main__":
             plot_episode(current_episodes, show_annotations=False, show_actions=True)
             plt.savefig(f"{save_path}/{epi}.pdf")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logging.info(f"An error occurred: {e}")

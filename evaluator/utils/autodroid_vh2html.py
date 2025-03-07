@@ -14,8 +14,8 @@ def get_id_from_view_desc(view_desc):
     try:
         ret = int(re.findall(r"id=(\d+)", view_desc)[0])
     except:
-        print(f"error indexing id from view desc")
-        print(view_desc)
+        logging.info(f"error indexing id from view desc")
+        logging.info(view_desc)
         ret = -1
     return ret
 
@@ -411,7 +411,7 @@ def _extract_all_children(views, id):
     view_graph = _build_view_graph(views)
     successors = []
     successors_of_view = nx.dfs_successors(view_graph, source=id, depth_limit=100)
-    # print(successors_of_view)
+    # logging.info(successors_of_view)
     for k, v in successors_of_view.items():
         for successor_id in v:
             if successor_id not in successors and successor_id != id:

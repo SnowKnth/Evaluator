@@ -66,12 +66,12 @@ def _check_img_exact_match(
     exec_hash = imagehash.average_hash(exec_image_patch)
 
     if gr_hash - exec_hash > image_similarity_bound:
-        print(
+        logging.info(
             f"[image] match fail: hamming distance: {gr_hash-exec_hash}, '{gr_screenshot_path}' with '{exec_screenshot_path}'"
         )
         return False
 
-    print(
+    logging.info(
         f"[image] match success: hamming distance: {gr_hash-exec_hash}, '{gr_screenshot_path}' with '{exec_screenshot_path}'"
     )
     return True
@@ -180,10 +180,10 @@ def check_uicomponent_match(gr_ui_state: UIState, exec_ui_state: UIState) -> boo
             # if there is one annotated UI component (indicated by node_id) has no
             # matched counterpart, directly return False to indicate
             if not _check_exact_single_node_match(annotated_ui_repr, exec_ui_tree):
-                # print(f"[textbox] match failed: '{gr_ui_state.screenshot_path}', essential state: {annotated_ui_repr}")
+                # logging.info(f"[textbox] match failed: '{gr_ui_state.screenshot_path}', essential state: {annotated_ui_repr}")
                 return False
 
-    print(
+    logging.info(
         f"[textbox] match success: '{gr_ui_state.screenshot_path}' with '{exec_ui_state.screenshot_path}'"
     )
     return True
@@ -196,7 +196,7 @@ def check_activity_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
 
     match = True if exec_ui_state.activity in gr_ui_state.activity else False
     if match:
-        print(
+        logging.info(
             f"[actvity] match success: '{gr_ui_state.activity}' with '{exec_ui_state.activity}'"
         )
     return match
@@ -256,12 +256,12 @@ def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     x = exec_ui_state.action.touch_point_yx[1] * screen_width
 
     if left <= x <= right and top <= y <= bottom:
-        print(
+        logging.info(
             f"[click] match success: click action:{x,y}, '{gr_ui_state.vh_path}' with '{exec_ui_state.vh_path}'"
         )
         return True
     else:
-        print(
+        logging.info(
             f"[click] match failed: click action:{x,y}, '{gr_ui_state.vh_path}' with '{exec_ui_state.vh_path}'"
         )
         return False

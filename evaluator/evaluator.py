@@ -28,7 +28,7 @@ class BaseEvaluator(ABC):
         gr_dataset_path: str,
         options: Dict = None,
     ) -> None:
-        logging.basicConfig(level=logging.INFO)
+        # logging.basicConfig(level=logging.INFO)
         self.logger = None
         self.agent: MobileAgent = agent
         self.evaluator_name: str = None
@@ -118,7 +118,7 @@ class BaseEvaluator(ABC):
         if not human_eval_path:
             exec_positive = (exec_df["execution"] == 1).sum()
             exec_negative = (exec_df["execution"] == 0).sum()
-            print(f"Completed tasks: {exec_positive}, failed tasks: {exec_negative}")
+            logging.info(f"Completed tasks: {exec_positive}, failed tasks: {exec_negative}")
             self._dump_stats(to_stdout=to_stdout)
         else:
             with open(human_eval_path, "r") as f:
@@ -133,7 +133,7 @@ class BaseEvaluator(ABC):
             human_positive = (eval_df[eval_df.columns[1]] == 1).sum()
             exec_positive = (eval_df["execution"] == 1).sum()
             exec_negative = total - exec_positive
-            print(f"Completed tasks: {exec_positive}, failed tasks: {exec_negative}")
+            logging.info(f"Completed tasks: {exec_positive}, failed tasks: {exec_negative}")
             tp = (eval_df[eval_df.columns[1]] == eval_df["execution"]).sum()
             self._dump_stats(
                 metric=(total, human_positive, exec_positive, tp),
@@ -153,7 +153,7 @@ class BaseEvaluator(ABC):
         ]
 
         if to_stdout:
-            print("".join(stats))
+            logging.info("".join(stats))
             exit(0)
 
         if metric:
@@ -179,4 +179,4 @@ class BaseEvaluator(ABC):
             file_name = f"dumped_stats/{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
         with open(file_name, "w") as f:
             f.writelines(stats)
-        print(f"Evaluation results were dumped to file {file_name}")
+        logging.info(f"Evaluation results were dumped to file {file_name}")
