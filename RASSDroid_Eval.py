@@ -126,7 +126,7 @@ if __name__ == "__main__":
         t.report_stats(
             human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
             only_human_eval_positive=False,
-            suffix="only_human_success",
+            # suffix="only_human_success",
         )
     else:
         raise Exception(

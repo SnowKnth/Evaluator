@@ -90,7 +90,6 @@ class TestbedEvaluator(BaseEvaluator):
             self.system_state_exact_match = True
 
         self.logger = logging.getLogger(self.evaluator_name)
-        logging.getLogger().setLevel(logging.WARNING)
 
     def eval_impl(
         self, episode, task_description

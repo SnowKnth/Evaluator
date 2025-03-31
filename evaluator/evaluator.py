@@ -15,7 +15,7 @@ from .task_trace import DatasetHelper
 class FailedReason(Enum):
     GR_TRACE_NOT_FOUND = "ground-truth trace not found"
     EXEC_TRACE_NOT_FOUND = "execution trace not found"
-    REF_TRACE_NOT_FOUND = "reference trace not found"
+    REF_TRACE_NOT_FOUND = "reference trace not found" # by wxd, what is the difference with "ground-truth trace not found"
     STEP_CHECK_FAILED = "step checking failed"
     UI_POSITIONS_NOT_FOUND = "ui positions not found"
 
@@ -28,7 +28,7 @@ class BaseEvaluator(ABC):
         gr_dataset_path: str,
         options: Dict = None,
     ) -> None:
-        # logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO)
         self.logger = None
         self.agent: MobileAgent = agent
         self.evaluator_name: str = None
@@ -80,7 +80,7 @@ class BaseEvaluator(ABC):
         try:
             ret = self.eval_impl(episode, task_description)
         except Exception as e:
-            self.logger.error(f"Failed to evaluate episode {episode}: {str(e)}")
+            self.logger.exception(f"Failed to evaluate episode {episode}: {str(e)}")
             # TODO: add FailedReason for this case
             return False, FailedReason.UI_POSITIONS_NOT_FOUND
         return ret
