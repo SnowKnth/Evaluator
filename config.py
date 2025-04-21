@@ -10,7 +10,11 @@ class CONFIG:
     APPAGENT_EXEC_TRACE_PATH = "/data/wxd/LlamaTouch/agent_exec_traces/AppAgent_traces"
     COCOAGENT_EXEC_TRACE_PATH = "/data/wxd/LlamaTouch/agent_exec_traces/CoCoAgent_traces"
     RASSDROID_EXEC_TRACE_PATH = "/data/wxd/LlamaTouch/RASSDroid/exec_output_deepseek_0324"
+    AUTODROID_DEEPSEEK_NO_SLEEP_EXEC_TRACE_PATH = "/data/wxd/LlamaTouch/AutoDroid/exec_output_llamatouch_autodroid_deepseek"
+    exec_output_llamatouch_autodroid_deepseek_with_sleep_5s = "/data/wxd/LlamaTouch/AutoDroid/exec_output_llamatouch_autodroid_deepseek_with_sleep_5s"
+    exec_output_llamatouch_autodroid_deepseek_scroll_text = "/data/wxd/LlamaTouch/RASSDroid/exec_output_llamatouch_autodroid_deepseek_scroll_text_04-05_1-495"
 
+    RASSDROID_ORACLE_EXEC_TRACE_PATH = "/data/wxd/LlamaTouch/RASSDroid/exec_output_deepseek_oracle"
     # human eval result path
     AUTOUI_HUMANEVAL_PATH = "/data/wxd/LlamaTouch/agent_exec_traces/human_autoui.csv"
     AUTODROID_HUMANEVAL_PATH = "/data/wxd/LlamaTouch/agent_exec_traces/human_autodroid.csv"

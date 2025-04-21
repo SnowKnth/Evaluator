@@ -15,8 +15,12 @@ class AutoUI(MobileAgent):
     def __init__(self) -> None:
         super().__init__()
         self.agent = Agent.RASSDROID
-        self.agent_exec_trace_path = CONFIG.RASSDROID_EXEC_TRACE_PATH
-
+        # self.agent_exec_trace_path = CONFIG.RASSDROID_EXEC_TRACE_PATH
+        # self.agent_exec_trace_path = CONFIG.AUTODROID_DEEPSEEK_NO_SLEEP_EXEC_TRACE_PATH
+        self.agent_exec_trace_path = CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH
+        # self.agent_exec_trace_path = CONFIG.exec_output_llamatouch_autodroid_deepseek_with_sleep_5s
+        # self.agent_exec_trace_path = CONFIG.exec_output_llamatouch_autodroid_deepseek_scroll_text
+        
     def load_predicted_action_by_episode(self, episode: str) -> Optional[List[Action]]:
         '''extracts the action sequence from an agent execution trace. This is used for the two baseline evaluation approaches involving only action match.'''
         exec_trace: TaskTrace = self.load_exec_trace_by_episode(episode)
@@ -71,7 +75,7 @@ if __name__ == "__main__":
         e.report_stats(
             human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
             only_human_eval_positive=False,
-            suffix="only_human_success",
+            # suffix="only_human_success",
         )
 
     elif args.eval == "testbed" or args.eval == "t":
@@ -91,7 +95,7 @@ if __name__ == "__main__":
                 "check_fuzzy_match": True,
                 "check_exact_match": True,
                 "check_system_state": True,
-                "first_n":100,
+                # "first_n":100,
                 # only evaluate selected tasks with the following episodes
                 # "episodes": [
                 #     "epi1",
@@ -104,7 +108,7 @@ if __name__ == "__main__":
         t.report_stats(
             human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
             only_human_eval_positive=False,
-            suffix="only_human_success",
+            # suffix="only_human_success",
         )
     elif args.eval == "lcs-exact" or args.eval == "lcse":
         t = LCSMatchEvaluator(
