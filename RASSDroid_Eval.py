@@ -17,7 +17,7 @@ class AutoUI(MobileAgent):
         self.agent = Agent.RASSDROID
         # self.agent_exec_trace_path = CONFIG.RASSDROID_EXEC_TRACE_PATH
         # self.agent_exec_trace_path = CONFIG.AUTODROID_DEEPSEEK_NO_SLEEP_EXEC_TRACE_PATH
-        self.agent_exec_trace_path = CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH2
+        self.agent_exec_trace_path = CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_05_11
         # self.agent_exec_trace_path = CONFIG.exec_output_llamatouch_autodroid_deepseek_with_sleep_5s
         # self.agent_exec_trace_path = CONFIG.exec_output_llamatouch_autodroid_deepseek_scroll_text
         
