@@ -10,8 +10,8 @@ class ActionType(Enum):
     """Integer values for each supported action type in AndroidInTheWild."""
 
     # Placeholders for unused enum values
-    UNUSED_0 = 0
-    UNUSED_1 = 1
+    Assertion = 0 # by wxd
+    Other_Action_String = 1
     UNUSED_2 = 2
     UNUSED_8 = 8
     UNUSED_9 = 9
@@ -59,3 +59,4 @@ class Action(NamedTuple):
     touch_point_yx: Tuple[float, float] = (-1, -1)
     lift_point_yx: Tuple[float, float] = (-1, -1)
     typed_text: str = ""
+    

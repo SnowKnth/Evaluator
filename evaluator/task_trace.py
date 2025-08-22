@@ -6,6 +6,7 @@ from collections import OrderedDict
 from enum import Enum
 from functools import lru_cache
 from typing import DefaultDict, Dict, List, Optional, Tuple, Union
+from droidbot.input_event import OracleEvent
 
 from .common.action_type import Action, ActionType
 
@@ -60,10 +61,10 @@ class UIState:
     """
     - index: int, index of the UIState in a trace
     - screenshot_path: string
-    - vh_path: string, dumped through `uiautomator`
-    - vh_json_path: string, dumped through `droidbot`
+    - vh_path: string, dumped through `uiautomator`, .xml path
+    - vh_json_path: string, dumped through `droidbot`, .vh path
     - vh_simp_ui_json_path: string|None, only exist in the ground-truth dataset;
-        used to visualize important UI components
+        used to visualize important UI components, .json path
     - activity: stirng, activity of the current screen
     - action: Action
     - state_type: string ["groundtruth", "execution"], type of the UIState
@@ -81,7 +82,7 @@ class UIState:
         vh_path: str,
         vh_json_path: str,
         activity: str,
-        action: Action,
+        action: Union[Action, OracleEvent, str],
         state_type: str,
         vh_simp_ui_json_path: Optional[str] = None,  # only gr-trace contains this field
     ) -> None:
@@ -267,7 +268,7 @@ class DatasetHelper:
     # ---- action: [-1.action, 0.action, 1.action, ...]    #
     # ---- screenshot: [0.png, 1.png, ...]                 #
     # ---------------------------------------------------- #
-    def _proc_testbed_trace_action_file(self, action_file) -> Action:
+    def _proc_testbed_trace_action_file(self, action_file, event_json_path) -> Union[Action, OracleEvent, str]:
         """
         action_type:
             - "CLICK"
@@ -297,7 +298,15 @@ class DatasetHelper:
             action_repr = f.read()
         action_repr = action_repr.split("|")
         if (len(action_repr)==1):
-            return action_repr
+            try:
+                with open(event_json_path, 'r') as event_f:
+                    obj = json.load(event_f)
+                if "condition" in obj:
+                    action = OracleEvent(event_dict = obj["event"])
+                    return action
+                return action_repr[0]  
+            except json.JSONDecodeError:
+                return action_repr[0]
         action_type = action_repr[0]
         if action_repr[2] != "NULL":
             pattern = r"\[(-?\d+\.\d+),?\s+(-?\d+\.\d+)\]"
@@ -339,6 +348,13 @@ class DatasetHelper:
         return action
 
     def load_testbed_trace_by_path(self, path: str) -> TaskTrace:
+        par_dir = os.path.dirname(path)
+        last_dir = os.path.basename(par_dir)
+        event_dir = os.path.join(par_dir, last_dir, "events")
+        # 获取所有 .json 文件名
+        event_file_list = [f for f in os.listdir(event_dir) if f.endswith(".json")]
+        # 按名称排序
+        event_file_list.sort()
         screenshot_folder_path = os.path.join(path, "screenshot")
         num_UIState = len(os.listdir(screenshot_folder_path))
         task_trace: List[UIState] = []
@@ -346,7 +362,10 @@ class DatasetHelper:
             screenshot_path = os.path.join(screenshot_folder_path, f"{i}.png")
             xml_path = os.path.join(path, "xml", f"{i}.xml")
             vh_json_path = os.path.join(path, "view_hierarchy", f"{i}.json")
-
+            if i < len(event_file_list)-1:
+                event_json_path = os.path.join(event_dir, f"{event_file_list[i+1]}.json")
+            else:
+                event_json_path = None
             activity_path = os.path.join(path, "activity", f"{i}.activity")
             activity = self._extract_activity_from_file(activity_path)
 
@@ -354,7 +373,7 @@ class DatasetHelper:
             if not os.path.exists(action_path):
                 action = None
             else:
-                action = self._proc_testbed_trace_action_file(action_path)
+                action = self._proc_testbed_trace_action_file(action_path, event_json_path)
 
             ui_state = UIState(
                 index=i,
@@ -374,7 +393,7 @@ class DatasetHelper:
     # -- Exposed methods                                   #
     # ---- load_groundtruth_trace_by_episode               #
     # ---------------------------------------------------- #
-    def load_groundtruth_trace_by_episode(self, episode: str) -> Optional[TaskTrace]:
+    def load_groundtruth_trace_by_episode(self, episode: str) -> Optional[TaskTrace]: # by wxd, seems working inefficiently
         category: TaskCategory = self.get_category_by_episode(episode)
         self.logger.info(f"episode: {episode}, category: {category}")
         if episode in self._load_groundtruth_trace_by_category(category):

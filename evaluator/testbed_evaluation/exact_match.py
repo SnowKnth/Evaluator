@@ -9,6 +9,9 @@ from PIL import Image
 
 from ..common.action_type import ActionType
 from ..task_trace import EssentialStateKeyword, UIState
+from droidbot.input_event import OracleEvent
+
+
 
 
 def _get_image_patch(image: Image, bounds: List[int]) -> Image:
@@ -77,13 +80,29 @@ def _check_img_exact_match(
     )
     return True
 
+def check_page_image_match( gr_screenshot_path: str, exec_screenshot_path: str, image_similarity_bound: Optional[int] = 1,) -> bool:
+    with Image.open(gr_screenshot_path) as img_gr, Image.open(exec_screenshot_path) as img_exec:
+        gr_hash = imagehash.average_hash(img_gr)
+        exec_hash = imagehash.average_hash(img_exec)
+
+        if gr_hash - exec_hash > image_similarity_bound:
+            logging.info(
+                f"[image] match fail: hamming distance: {gr_hash-exec_hash}, '{gr_screenshot_path}' with '{exec_screenshot_path}'"
+            )
+            return False
+
+        logging.info(
+            f"[image] match success: hamming distance: {gr_hash-exec_hash}, '{gr_screenshot_path}' with '{exec_screenshot_path}'"
+        )
+        return True
+
 
 def _check_exact_single_node_match(
     annotated_ui_node: Dict, exec_ui_node: etree.ElementTree
 ) -> bool:
     """Compare whether current UI representation in the execution trace matches
-    the annotated UI component.
-    The annotated UI component should be matched only when all attributes like
+    the annotated UI component. Find one node in the execution UI tree (traverse) that matches
+    the annotated one. The annotated UI component should be matched only when all attributes like
     'text', 'content-desc', 'checked', 'resource-id', etc. are matched.
 
     Args:
@@ -158,7 +177,7 @@ def check_uicomponent_match(gr_ui_state: UIState, exec_ui_state: UIState) -> boo
 
     parser = etree.XMLParser(recover=True, encoding="utf-8")
     exec_ui_tree = etree.parse(exec_ui_state.vh_path, parser)
-
+    # by wxd, .vh and .json are different, .json has less dict object in the array than in .vh 
     for node_id in match_node_ids:
         node_id = int(node_id)
         gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
@@ -170,6 +189,7 @@ def check_uicomponent_match(gr_ui_state: UIState, exec_ui_state: UIState) -> boo
             annotated_ui_repr.get("text", None) in null_state
             and annotated_ui_repr.get("content-desc", None) in null_state
         ):
+            # cmp img batch
             if not _check_img_exact_match(
                 annotated_ui_repr,
                 gr_ui_state.screenshot_path,
@@ -189,6 +209,104 @@ def check_uicomponent_match(gr_ui_state: UIState, exec_ui_state: UIState) -> boo
     )
     return True
 
+def extract_checked_attrs_from_event_view(event: dict) -> dict:
+    """
+    从event['view']字典中提取checked_attrs对应的字段并做名称映射，返回新dict。
+    """
+    checked_attrs = [
+        "class",
+        "text",
+        "resource-id",
+        "content-desc",
+        "enabled",
+        "checked",
+        "checkable",
+        "selected",
+        "focused",
+        "focusable",
+        "clickable",
+        "long-clickable",
+        "password",
+        "scrollable",
+    ]
+    # 映射关系：checked_attrs字段 -> event['view']中的字段
+    key_map = {
+        "resource-id": "resource_id",
+        "content-desc": "content_description",
+        "long-clickable": "long_clickable",
+        "password": "is_password",
+    }
+    view = event.get("view", {})
+    result = {}
+    for attr in checked_attrs:
+        src_key = key_map.get(attr, attr)
+        result[attr] = view.get(src_key)
+    return result
+
+# judge whether exec_ui_state.action is in dict related to node in match_filter
+def check_oracle_in_uicomponents(gr_ui_state: UIState, oracle: OracleEvent, match_filter: List[int]) -> int, int, int:
+    
+    nearFull_match = -1
+    keyword_match = -1
+    text_match = -1
+    trans_oracle_view = extract_checked_attrs_from_event_view(oracle.view)
+    checked_attrs_nearfull = [
+        "class",
+        "text",
+        "resource-id",
+        "content-desc",
+        "enabled",
+        "checked",
+        "checkable",
+        "selected",
+        "focused",
+        "focusable",
+        "clickable",
+        "long-clickable",
+        "password",
+        "scrollable",
+    ]
+    checked_attrs_keywords = ["text","resource-id","content-desc"]
+    checked_attrs_text = ["text"]
+    # 根据checked_attrs_nearfull、checked_attrs_keywords、checked_attrs_text的字段进行匹配，判断trans_oracle_view是否在gr_ui_state的match_filter对应的节点中，并记录匹配结果（match_filter中的节点id）到nearFull_match、keyword_match、text_match
+    parser = etree.XMLParser(recover=True, encoding="utf-8")
+    exec_ui_tree = etree.parse(gr_ui_state.vh_path, parser) # use gr_ui_state.vh_path to parse tree
+    for node_id in match_filter:    
+        node_id = int(node_id)
+        gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
+        annotated_ui_repr: Dict = json.load(
+            open(gr_vh_simp_ui_json_path, "r", encoding="utf-8")
+        )[node_id]
+
+        # nearfull match
+        find_node_match_nearfull = True
+        for attr in checked_attrs_nearfull:
+            if annotated_ui_repr.get(attr) != trans_oracle_view.get(attr):
+                find_node_match_nearfull = False
+                break
+        if find_node_match_nearfull:
+            nearFull_match = node_id
+
+        # keyword match
+        find_node_match_keyword = True
+        for attr in checked_attrs_keywords:
+            if annotated_ui_repr.get(attr) != trans_oracle_view.get(attr):
+                find_node_match_keyword = False
+                break
+        if find_node_match_keyword:
+            keyword_match = node_id
+
+        # text match
+        find_node_match_text = True
+        for attr in checked_attrs_text:
+            if annotated_ui_repr.get(attr) != trans_oracle_view.get(attr):
+                find_node_match_text = False
+                break
+        if find_node_match_text:
+            text_match = node_id
+
+    return nearFull_match, keyword_match, text_match
+        
 
 def check_activity_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     if gr_ui_state.activity == "null":
@@ -232,7 +350,7 @@ def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
     gr_click_xpath: str = json.load(
         open(gr_vh_simp_ui_json_path, "r", encoding="utf-8")
-    )[gr_click_id]["xpath"]
+    )[gr_click_id]["xpath"] # by wxd, no xpath string exist?
 
     parser = etree.XMLParser(recover=True, encoding="utf-8")
     exec_ui_tree = etree.parse(exec_ui_state.vh_path, parser)

@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from typing import Dict, List
 
 from lxml import etree
@@ -38,19 +39,19 @@ def check_fuzzy_match(
     fuzzy_match_node_ids: List[str] = gr_ui_state.essential_state[
         EssentialStateKeyword.FUZZY
     ]
-
+    
     for node_id in fuzzy_match_node_ids:
         """
+        
         TODO: can this be optimized?
-        All check_install & check_uninstall keywords are with fuzzy<-2>
-
+        All check_install & check_uninstall keywords are with fuzzy<-2> (not now, should be removed later)
         Example:
         check_install<Booking.com>|fuzzy<-2>
         check_uninstall<Microsoft Excel>|fuzzy<-2>
 
-        fuzzy<-1> indicates comparing the entire UI representation
+        fuzzy<-1> indicates comparing the entire UI representation (using sentence similarity), using simplified VH from autodroid developed for LLM prompting
 
-        fuzzy<x (x>=0)> indicates comparing only the node with id=x
+        fuzzy<x (x>=0)> indicates comparing only the node with id=x. For uicomponent fuzzy match, only text is compared directly.
         """
         node_id = int(node_id)
 
@@ -129,7 +130,7 @@ def check_fuzzy_match(
             node_class = node.get("class", "'")
             node_resource_id = node.get("resource-id", "")
             # TODO: check if node_text and target_text are semantically similar
-            if node_text == target_text:
+            if node_text == target_text:  # Only cmp text now
                 # finish this iteration: there is one node identical to the target node
                 node_text_matched = True
                 break

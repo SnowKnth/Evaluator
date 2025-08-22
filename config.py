@@ -27,6 +27,8 @@ class CONFIG:
     RASSDROID_ORACLE_EXEC_TRACE_PATH_07_09 = "/data/wxd/LlamaTouch/RASSDroid/exec_output_llamatouch_RASSDroid_deepseek_07-09"
     RASSDROID_ORACLE_EXEC_TRACE_PATH_07_12 = "/data/wxd/LlamaTouch/RASSDroid/exec_output_llamatouch_RASSDroid_deepseek_07-12"
     RASSDROID_ORACLE_EXEC_TRACE_PATH_07_19 = "/data/wxd/LlamaTouch/RASSDroid/exec_output_llamatouch_RASSDroid_deepseek_07-19"
+    RASSDROID_ORACLE_EXEC_TRACE_PATH_07_23 = "/data/wxd/LlamaTouch/RASSDroid/exec_output_llamatouch_RASSDroid_deepseek_07-23"
+    RASSDROID_ORACLE_EXEC_TRACE_PATH_07_29 = "/data/wxd/LlamaTouch/RASSDroid/exec_output_llamatouch_RASSDroid_deepseek_07-29"
     # human eval result path
     AUTOUI_HUMANEVAL_PATH = "/data/wxd/LlamaTouch/agent_exec_traces/human_autoui.csv"
     AUTODROID_HUMANEVAL_PATH = "/data/wxd/LlamaTouch/agent_exec_traces/human_autodroid.csv"

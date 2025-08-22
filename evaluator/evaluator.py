@@ -10,6 +10,9 @@ import pandas as pd
 
 from .agent import MobileAgent
 from .task_trace import DatasetHelper
+from .testbed_evaluator import TestbedEvaluator
+
+
 
 
 class FailedReason(Enum):
@@ -52,7 +55,7 @@ class BaseEvaluator(ABC):
                 target_episodes = [
                     epi
                     for category in self.options["categories"]
-                    for epi in self.helper.get_episodes_by_category(category)
+                    for epi in self.helper.get_episodes_by_category(category) # by wxd, seems working inefficiently
                 ]
             elif "episodes" in self.options:
                 target_episodes = self.options["episodes"]
@@ -73,6 +76,10 @@ class BaseEvaluator(ABC):
                 self.episode_completion[epi] = (completeness, failed_reason_str)
             else:
                 self.episode_completion[epi] = (completeness, "")
+        # 下面判断当前类是否为TestbedEvaluator
+        if isinstance(self, TestbedEvaluator):
+            file_name = f"dumped_stats/oracle_hit_results_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
+            self.dump_hit_results(file_name)
 
     def eval_episode(self, episode: str) -> Tuple[bool, Optional[FailedReason]]:
         self.logger.info(f"Evaluating episode: {episode}")
