@@ -23,7 +23,7 @@ def _check_img_exact_match(
     annotated_ui_node: Dict,
     gr_screenshot_path: str,
     exec_screenshot_path: str,
-    image_similarity_bound: Optional[int] = 1,
+    image_similarity_bound: Optional[int] = 5,
 ) -> bool:
     """
     Compare whether the image patch of the annotated UI component matches
@@ -66,8 +66,8 @@ def _check_img_exact_match(
         Image.open(exec_screenshot_path), [exec_l, exec_t, exec_r, exec_b]
     )
 
-    gr_hash = imagehash.average_hash(annotate_image_patch)
-    exec_hash = imagehash.average_hash(exec_image_patch)
+    gr_hash = imagehash.phash(annotate_image_patch)
+    exec_hash = imagehash.phash(exec_image_patch)
 
     if gr_hash - exec_hash > image_similarity_bound:
         logging.info(
@@ -80,10 +80,10 @@ def _check_img_exact_match(
     )
     return True
 
-def check_page_image_match( gr_screenshot_path: str, exec_screenshot_path: str, image_similarity_bound: Optional[int] = 1,) -> bool:
+def check_page_image_match( gr_screenshot_path: str, exec_screenshot_path: str, image_similarity_bound: Optional[int] = 5,) -> bool:
     with Image.open(gr_screenshot_path) as img_gr, Image.open(exec_screenshot_path) as img_exec:
-        gr_hash = imagehash.average_hash(img_gr)
-        exec_hash = imagehash.average_hash(img_exec)
+        gr_hash = imagehash.phash(img_gr)
+        exec_hash = imagehash.phash(img_exec)
 
         if gr_hash - exec_hash > image_similarity_bound:
             logging.info(
@@ -209,7 +209,7 @@ def check_uicomponent_match(gr_ui_state: UIState, exec_ui_state: UIState) -> boo
     )
     return True
 
-def extract_checked_attrs_from_event_view(event: dict) -> dict:
+def extract_checked_attrs_from_event_view(view: dict) -> dict:
     """
     从event['view']字典中提取checked_attrs对应的字段并做名称映射，返回新dict。
     """
@@ -236,19 +236,21 @@ def extract_checked_attrs_from_event_view(event: dict) -> dict:
         "long-clickable": "long_clickable",
         "password": "is_password",
     }
-    view = event.get("view", {})
     result = {}
     for attr in checked_attrs:
         src_key = key_map.get(attr, attr)
         result[attr] = view.get(src_key)
     return result
 
+from typing import Tuple
 # judge whether exec_ui_state.action is in dict related to node in match_filter
-def check_oracle_in_uicomponents(gr_ui_state: UIState, oracle: OracleEvent, match_filter: List[int]) -> int, int, int:
+def check_oracle_in_uicomponents(gr_ui_state: UIState, oracle: OracleEvent, match_filter: List[int]) -> Tuple[int, int, int]:
     
     nearFull_match = -1
     keyword_match = -1
     text_match = -1
+    if oracle.view is None:
+        return nearFull_match, keyword_match, text_match
     trans_oracle_view = extract_checked_attrs_from_event_view(oracle.view)
     checked_attrs_nearfull = [
         "class",
@@ -268,42 +270,33 @@ def check_oracle_in_uicomponents(gr_ui_state: UIState, oracle: OracleEvent, matc
     ]
     checked_attrs_keywords = ["text","resource-id","content-desc"]
     checked_attrs_text = ["text"]
+    
+    # Load UI nodes once to avoid repeated I/O in the loop
+    gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
+    with open(gr_vh_simp_ui_json_path, "r", encoding="utf-8") as f:
+        all_ui_nodes = json.load(f)
     # 根据checked_attrs_nearfull、checked_attrs_keywords、checked_attrs_text的字段进行匹配，判断trans_oracle_view是否在gr_ui_state的match_filter对应的节点中，并记录匹配结果（match_filter中的节点id）到nearFull_match、keyword_match、text_match
-    parser = etree.XMLParser(recover=True, encoding="utf-8")
-    exec_ui_tree = etree.parse(gr_ui_state.vh_path, parser) # use gr_ui_state.vh_path to parse tree
-    for node_id in match_filter:    
-        node_id = int(node_id)
-        gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
-        annotated_ui_repr: Dict = json.load(
-            open(gr_vh_simp_ui_json_path, "r", encoding="utf-8")
-        )[node_id]
+    for node_id_str in match_filter:
+        node_id = int(node_id_str)
+        annotated_ui_repr: Dict = all_ui_nodes[node_id]
 
-        # nearfull match
-        find_node_match_nearfull = True
-        for attr in checked_attrs_nearfull:
-            if annotated_ui_repr.get(attr) != trans_oracle_view.get(attr):
-                find_node_match_nearfull = False
-                break
-        if find_node_match_nearfull:
-            nearFull_match = node_id
+        # Check for matches only if they haven't been found yet.
+        # This prevents overwriting with a later, potentially less relevant match.
+        if nearFull_match == -1:
+            if all(_attrs_equal(annotated_ui_repr.get(attr), trans_oracle_view.get(attr), attr) for attr in checked_attrs_nearfull):
+                nearFull_match = node_id
 
-        # keyword match
-        find_node_match_keyword = True
-        for attr in checked_attrs_keywords:
-            if annotated_ui_repr.get(attr) != trans_oracle_view.get(attr):
-                find_node_match_keyword = False
-                break
-        if find_node_match_keyword:
-            keyword_match = node_id
+        if keyword_match == -1:
+            if all(_attrs_equal(annotated_ui_repr.get(attr), trans_oracle_view.get(attr), attr) for attr in checked_attrs_keywords):
+                keyword_match = node_id
 
-        # text match
-        find_node_match_text = True
-        for attr in checked_attrs_text:
-            if annotated_ui_repr.get(attr) != trans_oracle_view.get(attr):
-                find_node_match_text = False
-                break
-        if find_node_match_text:
-            text_match = node_id
+        if text_match == -1:
+            if all(_attrs_equal(annotated_ui_repr.get(attr), trans_oracle_view.get(attr), attr) for attr in checked_attrs_text):
+                text_match = node_id
+        
+        # Optimization: if all levels of matches are found, we can exit early.
+        if nearFull_match != -1 and keyword_match != -1 and text_match != -1:
+            break
 
     return nearFull_match, keyword_match, text_match
         
@@ -339,7 +332,8 @@ def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     based on the clicked item xpath in gr_ui_state.essential_state, find
     the corresponding node in the exec_ui_state and check if the click point in the node.
     """
-
+    if not hasattr(exec_ui_state.action, 'action_type'):
+        return False
     if exec_ui_state.action.action_type != ActionType.DUAL_POINT:
         return False
 
@@ -384,3 +378,23 @@ def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
             f"[click] match failed: click action:{x,y}, '{gr_ui_state.vh_path}' with '{exec_ui_state.vh_path}'"
         )
         return False
+
+def _normalize_attr_value(value):
+    """标准化属性值，处理None和空字符串的差异"""
+    if value is None or value == '' or value == 'null':
+        return None
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+def _attrs_equal(val1, val2, attr_name: str = None) -> bool:
+    """比较两个属性值是否相等，处理特殊情况"""
+    val1_norm = _normalize_attr_value(val1)
+    val2_norm = _normalize_attr_value(val2)
+    
+    # 对于text和content-desc属性，进行大小写不敏感比较
+    if attr_name in ["text", "content-desc"] and val1_norm and val2_norm:
+        return str(val1_norm).lower() == str(val2_norm).lower()
+    
+    return val1_norm == val2_norm
+

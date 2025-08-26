@@ -10,7 +10,6 @@ import pandas as pd
 
 from .agent import MobileAgent
 from .task_trace import DatasetHelper
-from .testbed_evaluator import TestbedEvaluator
 
 
 
@@ -76,10 +75,7 @@ class BaseEvaluator(ABC):
                 self.episode_completion[epi] = (completeness, failed_reason_str)
             else:
                 self.episode_completion[epi] = (completeness, "")
-        # 下面判断当前类是否为TestbedEvaluator
-        if isinstance(self, TestbedEvaluator):
-            file_name = f"dumped_stats/oracle_hit_results_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
-            self.dump_hit_results(file_name)
+        self.post_evaluation_hook()
 
     def eval_episode(self, episode: str) -> Tuple[bool, Optional[FailedReason]]:
         self.logger.info(f"Evaluating episode: {episode}")

@@ -85,23 +85,25 @@ if __name__ == "__main__":
             gr_dataset_path=CONFIG.GR_DATASET_PATH,
             options={
                 # only tasks of their categories in this list will be evaluated
-                "categories": [
-                    TaskCategory.GENERAL,
-                    TaskCategory.GOOGLEAPPS,
-                    TaskCategory.INSTALL,
-                    TaskCategory.WEBSHOPPING,
-                    TaskCategory.GENERATED,
-                ],
+                # "categories": [
+                #     TaskCategory.GENERAL,
+                #     TaskCategory.GOOGLEAPPS,
+                #     TaskCategory.INSTALL,
+                #     TaskCategory.WEBSHOPPING,
+                #     TaskCategory.GENERATED,
+                # ],
                 "check_fuzzy_match": True,
                 "check_exact_match": True,
                 "check_system_state": True,
                 # "first_n":100,
                 # only evaluate selected tasks with the following episodes
-                # "episodes": [
-                #     "epi1",
-                #     "epi2",
-                #     "..."
-                # ],
+                "episodes": [
+                #     "69947946018315292528", # Case study
+                #    "48505427833490254358", # OracleObj.view is None
+                "30385638682914557480",  # click
+                "74876621317193717445",  #"generated/trace_56/4.ess": "activity<0>|exact<25>",
+                "41129281445893361389", #click
+                ],
             },
         )
         t.run_evaluation()

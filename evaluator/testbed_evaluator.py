@@ -1,5 +1,6 @@
 import logging
 from typing import DefaultDict, Dict, List, Optional, Tuple, NamedTuple
+from datetime import datetime
 
 from evaluator.agent import MobileAgent
 
@@ -28,7 +29,9 @@ class OracleHitTuple(NamedTuple):
     - timestamp: The timestamp of the action.
     """
     episode: str
-    oracle_dict:  DefaultDict[EssentialStateKeyword, List[str]]
+    node_start_id: int = -1
+    node_start_oracle_id: int = -1
+    oracle_dict:  DefaultDict[EssentialStateKeyword, List[str]] = None
     activity_hit: int = 0
     fuzzy_pageimg_hit: int = 0
     fuzzy_page_main_uicomps_hit: int = 0
@@ -159,8 +162,7 @@ class TestbedEvaluator(BaseEvaluator):
                     # go to the next essential state in the ground-truth trace
                     # and the next UIState in the exec trace
                     gr_ui_state_matched = True
-                    # if calc_hit_results is not called, i += 1 is needed
-                    i = self.calc_hit_results(ui_state, exec_trace, i)
+                    i = self.calc_hit_results(episode, ui_state, exec_trace, i) # # 114 (without), 100 with this line
                     break
 
             if gr_ui_state_matched:
@@ -170,9 +172,22 @@ class TestbedEvaluator(BaseEvaluator):
 
         return True, None
 
+    def post_evaluation_hook(self) -> None:
+        """
+        Dump hit results after evaluation.
+        """
+        print(f"DEBUG: hit_results length: {len(self.hit_results)}")  # 添加调试信息
+        if self.hit_results:
+            print(f"DEBUG: First hit result: {self.hit_results[0]}")
+        
+        file_name = f"dumped_stats/oracle_hit_results_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
+        self.dump_hit_results(file_name)
+
     def dump_hit_results(self, filename: str = "oracle_hit_results.csv"):
         import csv
+        print(f"DEBUG: Trying to dump {len(self.hit_results)} results to {filename}")  # 添加调试信息
         if not self.hit_results:
+            print("DEBUG: hit_results is empty, not creating file")  # 添加调试信息
             return
         # 获取所有字段名
         fieldnames = self.hit_results[0]._fields
@@ -188,76 +203,125 @@ class TestbedEvaluator(BaseEvaluator):
                         row[k] = ",".join(str(x) for x in v)
                 writer.writerow(row)
     
+    # 69947946018315292528: 图片和VH有差别，但是img，VH都匹配; 另外uicomponent应该匹配但是没匹配
+    
     def calc_hit_results(
-        self, gr_ui_state: UIState, exec_trace: TaskTrace, node_id: int
+        self, episode: str, gr_ui_state: UIState, exec_trace: TaskTrace, node_id: int
     ) -> int:
         """
-        Calculate the hit results for the current ground-truth UIState.
-        Update the hit_results list with the OracleHitTuple.
+        计算当前ground-truth UIState的命中结果，并更新hit_results列表
+        
+        Args:
+            episode: 当前episode标识符
+            gr_ui_state: ground-truth UI状态
+            exec_trace: 执行轨迹
+            node_id: 执行轨迹中的起始节点ID
+            
+        Returns:
+            下一个要处理的节点ID
         """
-        episode: str = gr_ui_state.episode
-        activity_hit: int = 0
-        fuzzy_pageimg_hit: int = 0
-        fuzzy_page_main_uicomps_hit: int = 0
-        uicomponent_nearFull_hit: int = 0 # equal to exact hit
-        uicomponent_keywords_hit: int = 0
-        uicomponent_text_hit: int = 0
-        uicomponent_set: int = 0 # = 1 if groundtruth has assertion uicomponents: {exact<i>, fuzzy<i>, i>=0} 
+        # 初始化各种命中指标
+        activity_hit: int = 0  # activity匹配命中
+        fuzzy_pageimg_hit: int = 0  # 页面图片模糊匹配命中
+        fuzzy_page_main_uicomps_hit: int = 0  # 页面主要UI组件模糊匹配命中
+        uicomponent_nearFull_hit: int = 0  # UI组件近似完全匹配命中（等同于精确匹配）
+        uicomponent_keywords_hit: int = 0  # UI组件关键词匹配命中
+        uicomponent_text_hit: int = 0  # UI组件文本匹配命中
+        uicomponent_set: int = 0  # 是否设置了UI组件断言：{exact<i>, fuzzy<i>, i>=0} 
+        
+        # 记录匹配命中的具体节点ID列表
         uicomp_nearFull_hit_list: List[int] = []
         uicomp_keywords_hit_list: List[int] = []
         uicomp_text_hit_list: List[int] = []
 
+        # 获取ground-truth的essential state字典
         es_dict = gr_ui_state.essential_state
-        first_cmp = True
-        exec_ui_state = exec_trace[node_id]       
+        first_cmp = True  # 标记是否是第一次比较
+        node_start_id = node_id #记录gr_ui_state匹配开始的节点ID
+        node_start_oracle_id = -1  # 记录Oracle事件开始的节点ID
         
-        if not exec_ui_state.action.isinstance(OracleEvent):
-            return node_id + 1
-        
-        while node_id < len(exec_trace) and exec_ui_state.action.isinstance(OracleEvent):
-            if first_cmp:
-                if check_activity_match(gr_ui_state, exec_ui_state):
-                    activity_hit = 1
-                if check_page_image_match(gr_ui_state.screenshot_path, exec_ui_state.screenshot_path):
-                    fuzzy_pageimg_hit = 1
-                if compare_entire_ui_vh(gr_ui_state, exec_ui_state):
-                    fuzzy_page_main_uicomps_hit = 1
-                first_cmp = False
-            uicomponent_match_states: List[str] = es_dict.get(
-                EssentialStateKeyword.EXACT, None
-            )
-            fuzzy_match_states: List[str] = es_dict.get(
-                EssentialStateKeyword.FUZZY, None
-            )
-            match_filter: List[int] = []
-            if uicomponent_match_states:
-                for node_id_str in uicomponent_match_states:
-                    node_id_int = int(node_id_str)
-                    match_filter.append(node_id_int)
+        exec_ui_state = exec_trace[node_id]
 
-            if fuzzy_match_states:
-                for node_id_str in fuzzy_match_states:
-                    node_id_int = int(node_id_str)
-                    if node_id_int >= 0:
-                        match_filter.append(node_id_int)
-            if match_filter:
-                uicomponent_set = 1
-                # judge whether exec_ui_state.action is in dict related to node in match_filter
-                nearFull_match, keyword_match, text_match = check_oracle_in_uicomponents(gr_ui_state, exec_ui_state.action, match_filter)
-                if nearFull_match != -1:
-                    uicomponent_nearFull_hit = 1
-                    uicomp_nearFull_hit_list.append(nearFull_match)
-                if keyword_match != -1:
-                    uicomponent_keywords_hit = 1
-                    uicomp_keywords_hit_list.append(keyword_match)
-                if text_match != -1:
-                    uicomponent_text_hit = 1
-                    uicomp_text_hit_list.append(text_match)    
-            node_id += 1
-            exec_ui_state = exec_trace[node_id]
+        # 【优化1】预先构建匹配过滤器，避免在循环中重复构建
+        match_filter: List[int] = []
+        
+        # 处理exact匹配状态
+        uicomponent_match_states: List[str] = es_dict.get(EssentialStateKeyword.EXACT, None)
+        if uicomponent_match_states:
+            match_filter.extend([int(node_id_str) for node_id_str in uicomponent_match_states])
+        
+        # 处理fuzzy匹配状态
+        fuzzy_match_states: List[str] = es_dict.get(EssentialStateKeyword.FUZZY, None)
+        if fuzzy_match_states:
+            # 只添加有效的节点ID（>=0）
+            valid_fuzzy_ids = [int(node_id_str) for node_id_str in fuzzy_match_states if int(node_id_str) >= 0]
+            match_filter.extend(valid_fuzzy_ids)
+        
+        # 【优化2】去重并设置uicomponent_set标志
+        if match_filter:
+            match_filter = list(set(match_filter))  # 去重
+            uicomponent_set = 1
+
+        # 遍历所有连续的Oracle事件
+        while node_id < len(exec_trace) and isinstance(exec_ui_state.action, OracleEvent):
+            # 第一次比较时进行页面级别的检查
+            if exec_ui_state.action.assert_accept is True:
+                if first_cmp:
+                    node_start_oracle_id = node_id
+                    
+                    # 检查activity匹配
+                    if check_activity_match(gr_ui_state, exec_ui_state):
+                        activity_hit = 1
+                        
+                    # 检查页面图片匹配
+                    if check_page_image_match(gr_ui_state.screenshot_path, exec_ui_state.screenshot_path):
+                        fuzzy_pageimg_hit = 1
+                        
+                    # 检查整个UI VH匹配
+                    if compare_entire_ui_vh(gr_ui_state, exec_ui_state):
+                        fuzzy_page_main_uicomps_hit = 1
+                        
+                    first_cmp = False
                 
+                # 【优化3】只有在有匹配过滤器时才进行UI组件检查
+                if match_filter:
+                    # 判断exec_ui_state.action是否在match_filter对应的节点字典中; if exec_ui_state.action.view is None (This is a problem exist in input_policy ), will return -1,-1,-1 (meaning no match at all)
+                    nearFull_match, keyword_match, text_match = check_oracle_in_uicomponents(  
+                        gr_ui_state, exec_ui_state.action, match_filter
+                    )
+                    
+                    # 记录各种匹配结果
+                    if nearFull_match != -1:
+                        uicomponent_nearFull_hit = 1
+                        # 【优化4】避免重复添加相同的匹配结果
+                        if nearFull_match not in uicomp_nearFull_hit_list:
+                            uicomp_nearFull_hit_list.append(nearFull_match)
+                            
+                    if keyword_match != -1:
+                        uicomponent_keywords_hit = 1
+                        if keyword_match not in uicomp_keywords_hit_list:
+                            uicomp_keywords_hit_list.append(keyword_match)
+                            
+                    if text_match != -1:
+                        uicomponent_text_hit = 1
+                        if text_match not in uicomp_text_hit_list:
+                            uicomp_text_hit_list.append(text_match)
+            
+            # 移动到下一个节点
+            node_id += 1
+            
+            # 【优化5】边界检查并更新exec_ui_state
+            if node_id < len(exec_trace):
+                exec_ui_state = exec_trace[node_id]
+            else:
+                # 到达执行轨迹末尾，退出循环
+                break
+        
+        # 创建Oracle命中结果元组
         oracle_hit_tuple = OracleHitTuple(
             episode=episode,
+            node_start_id = node_start_id,
+            node_start_oracle_id=node_start_oracle_id,
             oracle_dict=gr_ui_state.essential_state,
             activity_hit=activity_hit,
             fuzzy_pageimg_hit=fuzzy_pageimg_hit,
@@ -270,7 +334,14 @@ class TestbedEvaluator(BaseEvaluator):
             uicomp_keywords_hit_list=uicomp_keywords_hit_list,
             uicomp_text_hit_list=uicomp_text_hit_list,
         )
-        self.hit_results.append(oracle_hit_tuple) # key operation
+        
+        # 【关键操作】将结果添加到hit_results列表中
+        self.hit_results.append(oracle_hit_tuple)
+        # 如果当前执行状态的action不是OracleEvent，while循环未执行，node_id未变化
+        # 则需要手动将node_id加1，确保继续处理下一个节点
+        if not isinstance(exec_ui_state.action, OracleEvent):
+            return node_id + 1
+        
         return node_id
 
         
@@ -333,7 +404,7 @@ class TestbedEvaluator(BaseEvaluator):
             if (
                 self.action_exact_match
                 and click_match_states
-                and not check_click_match(gr_ui_state, exec_ui_state)
+                and check_click_match(gr_ui_state, exec_ui_state) 
             ):
                 return False
 

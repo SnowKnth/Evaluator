@@ -298,15 +298,16 @@ class DatasetHelper:
             action_repr = f.read()
         action_repr = action_repr.split("|")
         if (len(action_repr)==1):
-            try:
-                with open(event_json_path, 'r') as event_f:
-                    obj = json.load(event_f)
-                if "condition" in obj:
-                    action = OracleEvent(event_dict = obj["event"])
-                    return action
-                return action_repr[0]  
-            except json.JSONDecodeError:
-                return action_repr[0]
+            if event_json_path and os.path.exists(event_json_path):
+                try:
+                    with open(event_json_path, 'r') as event_f:
+                        obj = json.load(event_f)
+                    if "event" in obj:
+                        if "condition" in obj["event"]:
+                            return OracleEvent(event_dict = obj["event"])
+                except json.JSONDecodeError:
+                    pass
+            return action_repr[0]
         action_type = action_repr[0]
         if action_repr[2] != "NULL":
             pattern = r"\[(-?\d+\.\d+),?\s+(-?\d+\.\d+)\]"
@@ -363,7 +364,7 @@ class DatasetHelper:
             xml_path = os.path.join(path, "xml", f"{i}.xml")
             vh_json_path = os.path.join(path, "view_hierarchy", f"{i}.json")
             if i < len(event_file_list)-1:
-                event_json_path = os.path.join(event_dir, f"{event_file_list[i+1]}.json")
+                event_json_path = os.path.join(event_dir, f"{event_file_list[i+1]}")
             else:
                 event_json_path = None
             activity_path = os.path.join(path, "activity", f"{i}.activity")
