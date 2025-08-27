@@ -162,7 +162,8 @@ class TestbedEvaluator(BaseEvaluator):
                     # go to the next essential state in the ground-truth trace
                     # and the next UIState in the exec trace
                     gr_ui_state_matched = True
-                    i = self.calc_hit_results(episode, ui_state, exec_trace, i) # # 114 (without), 100 with this line
+                    # click_match_states: List[str] = ui_state.get(EssentialStateKeyword.CLICK, None)
+                    i = self.calc_hit_results(episode, ui_state, exec_trace, i) # # 114 (without), 100 with this line ; 排查 Oracle.view is None 的原因
                     break
 
             if gr_ui_state_matched:
@@ -256,13 +257,18 @@ class TestbedEvaluator(BaseEvaluator):
             # 只添加有效的节点ID（>=0）
             valid_fuzzy_ids = [int(node_id_str) for node_id_str in fuzzy_match_states if int(node_id_str) >= 0]
             match_filter.extend(valid_fuzzy_ids)
-        
+            
+        # 处理 click 匹配状态
+        click_match_states: List[str] = es_dict.get(EssentialStateKeyword.CLICK, None)
+        if click_match_states:
+            match_filter.extend([int(node_id_str) for node_id_str in click_match_states])
+
         # 【优化2】去重并设置uicomponent_set标志
         if match_filter:
             match_filter = list(set(match_filter))  # 去重
             uicomponent_set = 1
 
-        # 遍历所有连续的Oracle事件
+        # 遍历当前ui_state向后的所有连续的Oracle事件
         while node_id < len(exec_trace) and isinstance(exec_ui_state.action, OracleEvent):
             # 第一次比较时进行页面级别的检查
             if exec_ui_state.action.assert_accept is True:
@@ -313,9 +319,63 @@ class TestbedEvaluator(BaseEvaluator):
             # 【优化5】边界检查并更新exec_ui_state
             if node_id < len(exec_trace):
                 exec_ui_state = exec_trace[node_id]
-            else:
-                # 到达执行轨迹末尾，退出循环
-                break
+        
+        # 如果有click匹配状态，继续向前检查
+        if click_match_states:
+            node_id_back = node_id - 1
+            exec_ui_state_back = exec_trace[node_id_back]
+            first_cmp = True  # 标记是否是第一次比较    
+            # 遍历当前ui_state向后的所有连续的Oracle事件
+            while node_id_back >= 0 and isinstance(exec_ui_state_back.action, OracleEvent):
+                    # 第一次比较时进行页面级别的检查
+                    if exec_ui_state_back.action.assert_accept is True:
+                        if first_cmp:
+                            node_start_oracle_id = node_id_back
+
+                            # 检查activity匹配
+                            if check_activity_match(gr_ui_state, exec_ui_state_back):
+                                activity_hit = 1
+                                
+                            # 检查页面图片匹配
+                            if check_page_image_match(gr_ui_state.screenshot_path, exec_ui_state_back.screenshot_path):
+                                fuzzy_pageimg_hit = 1
+                                
+                            # 检查整个UI VH匹配
+                            if compare_entire_ui_vh(gr_ui_state, exec_ui_state_back):
+                                fuzzy_page_main_uicomps_hit = 1
+                                
+                            first_cmp = False
+                        
+                        # 【优化3】只有在有组件相关Assertion时才进行UI组件检查
+                        if match_filter:
+                            # 判断exec_ui_state.action是否在match_filter对应的节点字典中; if exec_ui_state.action.view is None (This is a problem exist in input_policy ), will return -1,-1,-1 (meaning no match at all)
+                            nearFull_match, keyword_match, text_match = check_oracle_in_uicomponents(  
+                                gr_ui_state, exec_ui_state_back.action, match_filter
+                            )
+                            
+                            # 记录各种匹配结果
+                            if nearFull_match != -1:
+                                uicomponent_nearFull_hit = 1
+                                # 【优化4】避免重复添加相同的匹配结果
+                                if nearFull_match not in uicomp_nearFull_hit_list:
+                                    uicomp_nearFull_hit_list.append(nearFull_match)
+                                    
+                            if keyword_match != -1:
+                                uicomponent_keywords_hit = 1
+                                if keyword_match not in uicomp_keywords_hit_list:
+                                    uicomp_keywords_hit_list.append(keyword_match)
+                                    
+                            if text_match != -1:
+                                uicomponent_text_hit = 1
+                                if text_match not in uicomp_text_hit_list:
+                                    uicomp_text_hit_list.append(text_match)
+                    
+                    # 移动到下一个节点
+                    node_id_back -= 1
+                    
+                    # 【优化5】边界检查并更新exec_ui_state
+                    if node_id_back >= 0:
+                        exec_ui_state_back = exec_trace[node_id_back]
         
         # 创建Oracle命中结果元组
         oracle_hit_tuple = OracleHitTuple(
@@ -356,7 +416,7 @@ class TestbedEvaluator(BaseEvaluator):
 
         es_dict = gr_ui_state.essential_state
 
-        if True:  # fuzzy_match
+        if self.fuzzy_match:  # fuzzy_match
             fuzzy_match_states: List[str] = es_dict.get(
                 EssentialStateKeyword.FUZZY, None
             )
@@ -368,7 +428,7 @@ class TestbedEvaluator(BaseEvaluator):
             ):
                 return False
 
-        if True:  # exact_match:
+        if self.exact_match:  # exact_match:
             uicomponent_match_states: List[str] = es_dict.get(
                 EssentialStateKeyword.EXACT, None
             )
@@ -404,7 +464,7 @@ class TestbedEvaluator(BaseEvaluator):
             if (
                 self.action_exact_match
                 and click_match_states
-                and check_click_match(gr_ui_state, exec_ui_state) 
+                and not check_click_match(gr_ui_state, exec_ui_state) 
             ):
                 return False
 

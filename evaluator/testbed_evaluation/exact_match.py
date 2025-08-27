@@ -181,9 +181,9 @@ def check_uicomponent_match(gr_ui_state: UIState, exec_ui_state: UIState) -> boo
     for node_id in match_node_ids:
         node_id = int(node_id)
         gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
-        annotated_ui_repr: Dict = json.load(
-            open(gr_vh_simp_ui_json_path, "r", encoding="utf-8")
-        )[node_id]
+        with open(gr_vh_simp_ui_json_path, "r", encoding="utf-8") as f:
+            all_ui_nodes = json.load(f)
+            annotated_ui_repr: Dict = all_ui_nodes[node_id]
 
         if (
             annotated_ui_repr.get("text", None) in null_state
@@ -329,8 +329,8 @@ def check_type_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
 
 def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     """
-    based on the clicked item xpath in gr_ui_state.essential_state, find
-    the corresponding node in the exec_ui_state and check if the click point in the node.
+    based on the clicked item xpath in gr_ui_state.essential_state, find the corresponding node in the exec_ui_state using xpath  ,
+    and check if the click point （in coordinates） in the node.
     """
     if not hasattr(exec_ui_state.action, 'action_type'):
         return False
@@ -344,15 +344,15 @@ def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     gr_vh_simp_ui_json_path = gr_ui_state.vh_simp_ui_json_path
     gr_click_xpath: str = json.load(
         open(gr_vh_simp_ui_json_path, "r", encoding="utf-8")
-    )[gr_click_id]["xpath"] # by wxd, no xpath string exist?
+    )[gr_click_id]["xpath"] # by wxd, xpath string only exist in .json of the ith UIState that has .ess with click action  
 
     parser = etree.XMLParser(recover=True, encoding="utf-8")
     exec_ui_tree = etree.parse(exec_ui_state.vh_path, parser)
 
     found_nodes = exec_ui_tree.xpath(gr_click_xpath)
     if len(found_nodes) == 0:
-        raise AssertionError("No corresponding nodes found in the execution UI state.")
-
+        logging.warning(f"[click] match failed: No corresponding nodes found in the execution UI state for xpath: {gr_click_xpath}")
+        return False
     bounds = found_nodes[0].get("bounds")
     if not bounds:
         raise AssertionError("No bounds found for the corresponding node.")
@@ -361,7 +361,7 @@ def check_click_match(gr_ui_state: UIState, exec_ui_state: UIState) -> bool:
     )
 
     screen_width, screen_height = 0, 0
-    with Image.open(exec_ui_state.screenshot_path) as img:
+    with Image.open(exec_ui_state.screenshot_path) as img: #需要优化，去掉图片加载
         screen_width, screen_height = img.size
 
     # screen_width, screen_height = Image.open(exec_ui_state.screenshot_path).size
