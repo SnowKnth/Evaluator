@@ -85,13 +85,13 @@ if __name__ == "__main__":
             gr_dataset_path=CONFIG.GR_DATASET_PATH,
             options={
                 # only tasks of their categories in this list will be evaluated
-                "categories": [
-                    TaskCategory.GENERAL,
-                    TaskCategory.GOOGLEAPPS,
-                    TaskCategory.INSTALL,
-                    TaskCategory.WEBSHOPPING,
-                    TaskCategory.GENERATED,
-                ],
+                # "categories": [
+                #     TaskCategory.GENERAL,
+                #     TaskCategory.GOOGLEAPPS,
+                #     TaskCategory.INSTALL,
+                #     TaskCategory.WEBSHOPPING,
+                #     TaskCategory.GENERATED,
+                # ],
                 "check_fuzzy_match": True,
                 "check_exact_match": True,
                 "check_system_state": True,
@@ -103,6 +103,9 @@ if __name__ == "__main__":
                 # "30385638682914557480",  # click
                 # "74876621317193717445",  #"generated/trace_56/4.ess": "activity<0>|exact<25>",
                 # "41129281445893361389", #click
+                "37", # click, page hit but not uicomponent hit
+                "34561995503958932589",  # one page with 3 annotated assertions, page hit and 2 uicomponent hits
+                "50827638723968537952", # 2 pages with 1 annotated assertion, one page with page hit and uicomponent hit, one page with only page hit
                 ],
             },
         )

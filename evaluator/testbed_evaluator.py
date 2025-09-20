@@ -32,6 +32,7 @@ class OracleHitTuple(NamedTuple):
     node_start_id: int = -1
     node_start_oracle_id: int = -1
     oracle_dict:  DefaultDict[EssentialStateKeyword, List[str]] = None
+    page_hit: int = 0
     activity_hit: int = 0
     fuzzy_pageimg_hit: int = 0
     fuzzy_page_main_uicomps_hit: int = 0
@@ -43,6 +44,13 @@ class OracleHitTuple(NamedTuple):
     uicomp_keywords_hit_list: List[int] = None
     uicomp_text_hit_list: List[int] = None
 
+class HitMetrics(NamedTuple):
+    pages_annotated_hit: int
+    assertion_states_exec_total: int
+    assertion_states_gen_total: int
+    assertion_states_annotated_total: int
+    assertion_states_annotated_hit: int
+    is_assert_set: bool
 
     
 
@@ -58,7 +66,24 @@ class TestbedEvaluator(BaseEvaluator):
         super().__init__(agent, epi_metadata_path, gr_dataset_path, options)
         self.evaluator_name = self.__class__.__name__
         self.hit_results: List[OracleHitTuple] = []
-
+        
+        self.key_subtasks_total: int = 0 # total key subtasks marked by pages with one or several assertions
+        self.completed_key_subtasks: int = 0 # key subtasks that are completed
+        
+        self.pages_exec_total: int = 0 # total pages in execution trace, denominator(分母) for page-level accuracy
+        self.pages_gen_total: int = 0 # total pages with generated assertions, denominator(分母) for page-level precision
+        self.pages_annotated_total: int = 0 # total pages with annotated assertions, denominator(分母) for page-level recall
+        self.pages_annotated_hit: int = 0 # pages with annotated assertions and at least one hit, numerator(分子) for page-level recall and precision
+        self.pages_no_annotation_nor_gen_total: int = 0 # true negative: pages without annotated assertions and without generated assertions; along with pages_annotated_hit, numerator(分子) for page-level accuracy
+         
+        self.assertion_states_exec_total: int = 0 # total assertion states in execution trace, denominator(分母) for assertion-level accuracy
+        self.assertion_states_gen_total: int = 0 # total generated assertion states, denominator(分母) for assertion-level precision
+        self.assertion_states_annotated_total: int = 0 # total annotated assertion states, denominator(分母) for assertion-level recall
+        self.assertion_states_annotated_hit: int = 0 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
+        self.assertion_states_no_annotation_nor_gen_total: int = 0 # true negative: assertion states without annotated assertions and without generated assertions; along with assertion_states_annotated_hit, numerator(分子) for assertion-level accuracy
+        
+        
+        
         """Ablation Study
         1. fuzzy_match
             - screen_level_fuzzy_match
@@ -130,11 +155,31 @@ class TestbedEvaluator(BaseEvaluator):
         exec_trace: TaskTrace = self.agent.load_exec_trace_by_episode(episode)
         if not exec_trace:
             return False, FailedReason.EXEC_TRACE_NOT_FOUND
+        
+        for ui_state in gr_trace:          
+            # if the current UIState contains no essential state, go to the next
+            if ui_state.essential_state is not None:
+                self.key_subtasks_total += 1
+        
+        tmp_pages_exec_total: int = 0 # total pages in execution trace, denominator(分母) for page-level accuracy
+        tmp_pages_gen_total: int = 0 # total pages with generated assertions, denominator(分母) for page-level precision
+        tmp_pages_annotated_total: int = 0 # total pages with annotated assertions, denominator(分母) for page-level recall
+        tmp_pages_annotated_hit: int = 0 # pages with annotated assertions and at least one hit, numerator(分子) for page-level recall and precision
+        tmp_pages_no_annotation_nor_gen_total: int = 0 # true negative: pages without annotated assertions and without generated assertions; along with pages_annotated_hit, numerator(分子) for page-level accuracy
+         
+        tmp_assertion_states_exec_total: int = 0 # total assertion states in execution trace, denominator(分母) for assertion-level accuracy
+        tmp_assertion_states_gen_total: int = 0 # total generated assertion states, denominator(分母) for assertion-level precision
+        tmp_assertion_states_annotated_total: int = 0 # total annotated assertion states, denominator(分母) for assertion-level recall
+        tmp_assertion_states_annotated_hit: int = 0 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
+        tmp_assertion_states_no_annotation_nor_gen_total: int = 0 # true negative: assertion states without annotated assertions and without generated assertions;
+        
+        last_is_assert = False # whether the last UIState in exec_trace is an accepted assertion state
 
         # index for iterating exec_trace
         i = 0
 
         for ui_state in gr_trace:
+            
             # if the current UIState contains no essential state, go to the next
             if ui_state.essential_state is None:
                 continue
@@ -151,19 +196,69 @@ class TestbedEvaluator(BaseEvaluator):
             # matched UIState
             while i < len(exec_trace):
                 cur_exec_ui_state: UIState = exec_trace[i]
-
+                
+                if cur_exec_ui_state.action is not None:
+                    if isinstance(cur_exec_ui_state.action, OracleEvent):
+                        if cur_exec_ui_state.action.assert_accept:
+                            tmp_assertion_states_exec_total += 1
+                            tmp_assertion_states_gen_total += 1
+                            if not last_is_assert:
+                                tmp_pages_exec_total += 1
+                                tmp_pages_gen_total += 1
+                                last_is_assert_tmp = True
+                    else: 
+                        if not last_is_assert:
+                            tmp_pages_exec_total += 1                     
+                            tmp_assertion_states_exec_total += 1
+                        last_is_assert_tmp = False
+                        
                 if not self.check_essential_state_match(ui_state, cur_exec_ui_state):
                     # current UIState in the exec trace does not match the
                     # essential state, go to the next UIState in the exec trace
+                    if not isinstance(cur_exec_ui_state.action, OracleEvent):
+                        if not last_is_assert:
+                            tmp_pages_no_annotation_nor_gen_total += 1 
+                            tmp_assertion_states_no_annotation_nor_gen_total += 1
+                    last_is_assert = last_is_assert_tmp
                     i += 1
                     continue
                 else:
                     # current essential state matches UIState in the exec trace,
                     # go to the next essential state in the ground-truth trace
                     # and the next UIState in the exec trace
+                    tmp_pages_annotated_total += 1
                     gr_ui_state_matched = True
+                    self.completed_key_subtasks += 1
                     # click_match_states: List[str] = ui_state.get(EssentialStateKeyword.CLICK, None)
-                    i = self.calc_hit_results(episode, ui_state, exec_trace, i) # # 114 (without), 100 with this line ; 排查 Oracle.view is None 的原因
+                    i,  hit_metrics = self.calc_hit_results(episode, ui_state, exec_trace, i) # # 114 (without), 100? with this line ; 排查 Oracle.view is None 的原因
+                    last_is_assert = last_is_assert_tmp
+                    if hit_metrics.is_assert_set:
+                        last_is_assert = True
+                        
+                    self.pages_exec_total += tmp_pages_exec_total
+                    self.pages_gen_total += tmp_pages_gen_total
+                    self.pages_annotated_total += tmp_pages_annotated_total
+                    self.pages_annotated_hit += tmp_pages_annotated_hit + hit_metrics.pages_annotated_hit # only latter added
+                    self.pages_no_annotation_nor_gen_total += tmp_pages_no_annotation_nor_gen_total
+                    self.assertion_states_exec_total += tmp_assertion_states_exec_total + hit_metrics.assertion_states_exec_total
+                    self.assertion_states_gen_total += tmp_assertion_states_gen_total + hit_metrics.assertion_states_gen_total
+                    self.assertion_states_annotated_total += tmp_assertion_states_annotated_total + hit_metrics.assertion_states_annotated_total # only latter added
+                    self.assertion_states_annotated_hit += tmp_assertion_states_annotated_hit + hit_metrics.assertion_states_annotated_hit # only latter added
+                    self.assertion_states_no_annotation_nor_gen_total += tmp_assertion_states_no_annotation_nor_gen_total
+                                            
+                    tmp_pages_exec_total: int = 0 # total pages in execution trace, denominator(分母) for page-level accuracy
+                    tmp_pages_gen_total: int = 0 # total pages with generated assertions, denominator(分母) for page-level precision
+                    tmp_pages_annotated_total: int = 0 # total pages with annotated assertions, denominator(分母) for page-level recall
+                    tmp_pages_annotated_hit: int = 0 # pages with annotated assertions and at least one hit, numerator(分子) for page-level recall and precision
+                    tmp_pages_no_annotation_nor_gen_total: int = 0 # true negative: pages without annotated assertions and without generated assertions; along with pages_annotated_hit, numerator(分子) for page-level accuracy
+                    
+                    tmp_assertion_states_exec_total: int = 0 # total assertion states in execution trace, denominator(分母) for assertion-level accuracy
+                    tmp_assertion_states_gen_total: int = 0 # total generated assertion states, denominator(分母) for assertion-level precision
+                    tmp_assertion_states_annotated_total: int = 0 # total annotated assertion states, denominator(分母) for assertion-level recall
+                    tmp_assertion_states_annotated_hit: int = 0 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
+                    tmp_assertion_states_no_annotation_nor_gen_total: int = 0 # true negative: assertion states without annotated assertions and without generated assertions;
+                    
+                    
                     break
 
             if gr_ui_state_matched:
@@ -183,17 +278,58 @@ class TestbedEvaluator(BaseEvaluator):
         
         file_name = f"dumped_stats/oracle_hit_results_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
         self.dump_hit_results(file_name)
+        
+        # 计算并输出统计指标
+        metrics_file_name = f"dumped_stats/evaluation_metrics_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
+        self.dump_evaluation_metrics(metrics_file_name)
+        
 
     def dump_hit_results(self, filename: str = "oracle_hit_results.csv"):
         import csv
+        import os
+        
         print(f"DEBUG: Trying to dump {len(self.hit_results)} results to {filename}")  # 添加调试信息
         if not self.hit_results:
             print("DEBUG: hit_results is empty, not creating file")  # 添加调试信息
             return
-        # 获取所有字段名
-        fieldnames = self.hit_results[0]._fields
+            
+        # 确保目录存在
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        
+        # 获取所有字段名，并添加统计字段
+        hit_results_fieldnames = list(self.hit_results[0]._fields)
+        
+        # 添加统计变量字段
+        stats_fieldnames = [
+            "key_subtasks_total", "completed_key_subtasks",
+            "pages_exec_total", "pages_gen_total", "pages_annotated_total", 
+            "pages_annotated_hit", "pages_no_annotation_nor_gen_total",
+            "assertion_states_exec_total", "assertion_states_gen_total", 
+            "assertion_states_annotated_total", "assertion_states_annotated_hit", 
+            "assertion_states_no_annotation_nor_gen_total",
+            # 计算得出的指标
+            "page_precision", "page_recall", "page_accuracy", "page_f1",
+            "assertion_precision", "assertion_recall", "assertion_accuracy", "assertion_f1",
+            "task_completion_rate"
+        ]
+        
+        all_fieldnames = hit_results_fieldnames + stats_fieldnames
+        
+        # 计算指标
+        page_precision = self.pages_annotated_hit / self.pages_gen_total if self.pages_gen_total > 0 else 0.0
+        page_recall = self.pages_annotated_hit / self.pages_annotated_total if self.pages_annotated_total > 0 else 0.0
+        page_accuracy = (self.pages_annotated_hit + self.pages_no_annotation_nor_gen_total) / self.pages_exec_total if self.pages_exec_total > 0 else 0.0
+        page_f1 = 2 * page_precision * page_recall / (page_precision + page_recall) if (page_precision + page_recall) > 0 else 0.0
+        
+        assertion_precision = self.assertion_states_annotated_hit / self.assertion_states_gen_total if self.assertion_states_gen_total > 0 else 0.0
+        assertion_recall = self.assertion_states_annotated_hit / self.assertion_states_annotated_total if self.assertion_states_annotated_total > 0 else 0.0
+        assertion_accuracy = (self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total) / self.assertion_states_exec_total if self.assertion_states_exec_total > 0 else 0.0
+        assertion_f1 = 2 * assertion_precision * assertion_recall / (assertion_precision + assertion_recall) if (assertion_precision + assertion_recall) > 0 else 0.0
+        
+        task_completion_rate = self.completed_key_subtasks / self.key_subtasks_total if self.key_subtasks_total > 0 else 0.0
+        
         with open(filename, "w", newline='', encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer = csv.DictWriter(f, fieldnames=all_fieldnames)
             writer.writeheader()
             for tup in self.hit_results:
                 # NamedTuple转dict
@@ -202,8 +338,128 @@ class TestbedEvaluator(BaseEvaluator):
                 for k, v in row.items():
                     if isinstance(v, list):
                         row[k] = ",".join(str(x) for x in v)
+                
+                # 添加统计变量
+                row.update({
+                    "key_subtasks_total": self.key_subtasks_total,
+                    "completed_key_subtasks": self.completed_key_subtasks,
+                    "pages_exec_total": self.pages_exec_total,
+                    "pages_gen_total": self.pages_gen_total,
+                    "pages_annotated_total": self.pages_annotated_total,
+                    "pages_annotated_hit": self.pages_annotated_hit,
+                    "pages_no_annotation_nor_gen_total": self.pages_no_annotation_nor_gen_total,
+                    "assertion_states_exec_total": self.assertion_states_exec_total,
+                    "assertion_states_gen_total": self.assertion_states_gen_total,
+                    "assertion_states_annotated_total": self.assertion_states_annotated_total,
+                    "assertion_states_annotated_hit": self.assertion_states_annotated_hit,
+                    "assertion_states_no_annotation_nor_gen_total": self.assertion_states_no_annotation_nor_gen_total,
+                    # 计算得出的指标
+                    "page_precision": round(page_precision, 4),
+                    "page_recall": round(page_recall, 4),
+                    "page_accuracy": round(page_accuracy, 4),
+                    "page_f1": round(page_f1, 4),
+                    "assertion_precision": round(assertion_precision, 4),
+                    "assertion_recall": round(assertion_recall, 4),
+                    "assertion_accuracy": round(assertion_accuracy, 4),
+                    "assertion_f1": round(assertion_f1, 4),
+                    "task_completion_rate": round(task_completion_rate, 4),
+                })
+                
                 writer.writerow(row)
     
+    def dump_evaluation_metrics(self, filename: str = "evaluation_metrics.csv"):
+        """
+        计算并输出页面级别和断言级别的recall, precision, accuracy等指标
+        """
+        import csv
+        import os
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        
+        # 计算页面级别指标
+        page_precision = self.pages_annotated_hit / self.pages_gen_total if self.pages_gen_total > 0 else 0.0
+        page_recall = self.pages_annotated_hit / self.pages_annotated_total if self.pages_annotated_total > 0 else 0.0
+        page_accuracy = (self.pages_annotated_hit + self.pages_no_annotation_nor_gen_total) / self.pages_exec_total if self.pages_exec_total > 0 else 0.0
+        page_f1 = 2 * page_precision * page_recall / (page_precision + page_recall) if (page_precision + page_recall) > 0 else 0.0
+        
+        # 计算断言级别指标
+        assertion_precision = self.assertion_states_annotated_hit / self.assertion_states_gen_total if self.assertion_states_gen_total > 0 else 0.0
+        assertion_recall = self.assertion_states_annotated_hit / self.assertion_states_annotated_total if self.assertion_states_annotated_total > 0 else 0.0
+        assertion_accuracy = (self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total) / self.assertion_states_exec_total if self.assertion_states_exec_total > 0 else 0.0
+        assertion_f1 = 2 * assertion_precision * assertion_recall / (assertion_precision + assertion_recall) if (assertion_precision + assertion_recall) > 0 else 0.0
+        
+        # 计算任务完成率
+        task_completion_rate = self.completed_key_subtasks / self.key_subtasks_total if self.key_subtasks_total > 0 else 0.0
+        
+        # 准备输出数据
+        metrics_data = [
+            # 任务级别指标
+            {"metric_type": "task", "metric_name": "completion_rate", "value": task_completion_rate, 
+             "numerator": self.completed_key_subtasks, "denominator": self.key_subtasks_total},
+            
+            # 页面级别指标
+            {"metric_type": "page", "metric_name": "precision", "value": page_precision,
+             "numerator": self.pages_annotated_hit, "denominator": self.pages_gen_total},
+            {"metric_type": "page", "metric_name": "recall", "value": page_recall,
+             "numerator": self.pages_annotated_hit, "denominator": self.pages_annotated_total},
+            {"metric_type": "page", "metric_name": "accuracy", "value": page_accuracy,
+             "numerator": self.pages_annotated_hit + self.pages_no_annotation_nor_gen_total, "denominator": self.pages_exec_total},
+            {"metric_type": "page", "metric_name": "f1_score", "value": page_f1,
+             "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
+            
+            # 断言级别指标
+            {"metric_type": "assertion", "metric_name": "precision", "value": assertion_precision,
+             "numerator": self.assertion_states_annotated_hit, "denominator": self.assertion_states_gen_total},
+            {"metric_type": "assertion", "metric_name": "recall", "value": assertion_recall,
+             "numerator": self.assertion_states_annotated_hit, "denominator": self.assertion_states_annotated_total},
+            {"metric_type": "assertion", "metric_name": "accuracy", "value": assertion_accuracy,
+             "numerator": self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total, "denominator": self.assertion_states_exec_total},
+            {"metric_type": "assertion", "metric_name": "f1_score", "value": assertion_f1,
+             "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
+        ]
+        
+        # 添加原始统计数据
+        raw_stats = [
+            {"metric_type": "raw_stats", "metric_name": "key_subtasks_total", "value": self.key_subtasks_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "completed_key_subtasks", "value": self.completed_key_subtasks, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "pages_exec_total", "value": self.pages_exec_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "pages_gen_total", "value": self.pages_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "pages_annotated_total", "value": self.pages_annotated_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "pages_annotated_hit", "value": self.pages_annotated_hit, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "pages_no_annotation_nor_gen_total", "value": self.pages_no_annotation_nor_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "assertion_states_exec_total", "value": self.assertion_states_exec_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "assertion_states_gen_total", "value": self.assertion_states_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "assertion_states_annotated_total", "value": self.assertion_states_annotated_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "assertion_states_annotated_hit", "value": self.assertion_states_annotated_hit, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats", "metric_name": "assertion_states_no_annotation_nor_gen_total", "value": self.assertion_states_no_annotation_nor_gen_total, "numerator": "", "denominator": ""},
+        ]
+        
+        # 合并所有数据
+        all_data = metrics_data + raw_stats
+        
+        # 写入CSV文件
+        with open(filename, "w", newline='', encoding="utf-8") as f:
+            fieldnames = ["metric_type", "metric_name", "value", "numerator", "denominator"]
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(all_data)
+        
+        # 打印关键指标到控制台
+        print(f"\n=== Evaluation Metrics ===")
+        print(f"Task Completion Rate: {task_completion_rate:.4f} ({self.completed_key_subtasks}/{self.key_subtasks_total})")
+        print(f"\nPage-level Metrics:")
+        print(f"  Precision: {page_precision:.4f} ({self.pages_annotated_hit}/{self.pages_gen_total})")
+        print(f"  Recall:    {page_recall:.4f} ({self.pages_annotated_hit}/{self.pages_annotated_total})")
+        print(f"  Accuracy:  {page_accuracy:.4f} ({self.pages_annotated_hit + self.pages_no_annotation_nor_gen_total}/{self.pages_exec_total})")
+        print(f"  F1-Score:  {page_f1:.4f}")
+        print(f"\nAssertion-level Metrics:")
+        print(f"  Precision: {assertion_precision:.4f} ({self.assertion_states_annotated_hit}/{self.assertion_states_gen_total})")
+        print(f"  Recall:    {assertion_recall:.4f} ({self.assertion_states_annotated_hit}/{self.assertion_states_annotated_total})")
+        print(f"  Accuracy:  {assertion_accuracy:.4f} ({self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total}/{self.assertion_states_exec_total})")
+        print(f"  F1-Score:  {assertion_f1:.4f}")
+        print(f"\nMetrics saved to: {filename}")
+        
     # 69947946018315292528: 图片和VH有差别，但是img，VH都匹配; 另外uicomponent应该匹配但是没匹配
     
     def calc_hit_results(
@@ -222,7 +478,8 @@ class TestbedEvaluator(BaseEvaluator):
             下一个要处理的节点ID
         """
         # 初始化各种命中指标
-        activity_hit: int = 0  # activity匹配命中
+        page_hit: int = 0  # 页面匹配命中
+        activity_hit: int = 0  # 基于activity判定的页面匹配命中
         fuzzy_pageimg_hit: int = 0  # 页面图片模糊匹配命中
         fuzzy_page_main_uicomps_hit: int = 0  # 页面主要UI组件模糊匹配命中
         uicomponent_nearFull_hit: int = 0  # UI组件近似完全匹配命中（等同于精确匹配）
@@ -234,6 +491,16 @@ class TestbedEvaluator(BaseEvaluator):
         uicomp_nearFull_hit_list: List[int] = []
         uicomp_keywords_hit_list: List[int] = []
         uicomp_text_hit_list: List[int] = []
+        
+
+        tmp_pages_annotated_hit: int = 0 # pages with annotated assertions and at least one hit, numerator(分子) for page-level recall and precision
+
+        tmp_assertion_states_exec_total: int = 0 # total assertion states in execution trace, denominator(分母) for assertion-level accuracy
+        tmp_assertion_states_gen_total: int = 0 # total generated assertion states, denominator(分母) for assertion-level precision               
+        tmp_assertion_states_annotated_total: int = 0 # total annotated assertion states, denominator(分母) for assertion-level recall
+        tmp_assertion_states_annotated_hit: int = 0 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
+        
+        lst_is_assert_Set = False # whether the last UIState in exec_trace is an accepted assertion state
 
         # 获取ground-truth的essential state字典
         es_dict = gr_ui_state.essential_state
@@ -241,6 +508,7 @@ class TestbedEvaluator(BaseEvaluator):
         node_start_id = node_id #记录gr_ui_state匹配开始的节点ID
         node_start_oracle_id = -1  # 记录Oracle事件开始的节点ID
         
+        exec_ui_state_first = exec_trace[node_id]
         exec_ui_state = exec_trace[node_id]
 
         # 【优化1】预先构建匹配过滤器，避免在循环中重复构建
@@ -267,58 +535,70 @@ class TestbedEvaluator(BaseEvaluator):
         if match_filter:
             match_filter = list(set(match_filter))  # 去重
             uicomponent_set = 1
+        tmp_assertion_states_annotated_total += len(match_filter) # total annotated assertion states, denominator(分母) for assertion-level recall
 
-        # 遍历当前ui_state向后的所有连续的Oracle事件
-        while node_id < len(exec_trace) and isinstance(exec_ui_state.action, OracleEvent):
-            # 第一次比较时进行页面级别的检查
-            if exec_ui_state.action.assert_accept is True:
-                if first_cmp:
-                    node_start_oracle_id = node_id
+
+        if not click_match_states:
+            # 遍历当前ui_state向后的所有连续的Oracle事件
+            while node_id < len(exec_trace) and isinstance(exec_ui_state.action, OracleEvent):
+                # 第一次比较时进行页面级别的检查
+                if exec_ui_state.action.assert_accept is True:
                     
-                    # 检查activity匹配
-                    if check_activity_match(gr_ui_state, exec_ui_state):
-                        activity_hit = 1
+                    if first_cmp:
+                        node_start_oracle_id = node_id
+
+                        tmp_pages_annotated_hit = 1 # pages with annotated assertions and at least one hit, numerator(分子) for page-level recall and precision
+                        page_hit = 1
+                        # 检查activity匹配
+                        if check_activity_match(gr_ui_state, exec_ui_state):
+                            activity_hit = 1
+                            
+                        # 检查页面图片匹配
+                        if check_page_image_match(gr_ui_state.screenshot_path, exec_ui_state.screenshot_path):
+                            fuzzy_pageimg_hit = 1
+                            
+                        # 检查整个UI VH匹配
+                        if compare_entire_ui_vh(gr_ui_state, exec_ui_state):
+                            fuzzy_page_main_uicomps_hit = 1
+                            
+                        first_cmp = False
                         
-                    # 检查页面图片匹配
-                    if check_page_image_match(gr_ui_state.screenshot_path, exec_ui_state.screenshot_path):
-                        fuzzy_pageimg_hit = 1
+                    else:
+                        tmp_assertion_states_exec_total += 1
+                        tmp_assertion_states_gen_total += 1
+                        lst_is_assert_Set = True
+
+                    # 【优化3】只有在有匹配过滤器时才进行UI组件检查
+                    if match_filter:
+                        # 判断exec_ui_state.action是否在match_filter对应的节点字典中; if exec_ui_state.action.view is None (This is a problem exist in input_policy ), will return -1,-1,-1 (meaning no match at all)
+                        nearFull_match, keyword_match, text_match = check_oracle_in_uicomponents(  
+                            gr_ui_state, exec_ui_state.action, match_filter
+                        )
                         
-                    # 检查整个UI VH匹配
-                    if compare_entire_ui_vh(gr_ui_state, exec_ui_state):
-                        fuzzy_page_main_uicomps_hit = 1
-                        
-                    first_cmp = False
+                        # 记录各种匹配结果
+                        if nearFull_match != -1:
+                            uicomponent_nearFull_hit = 1
+                            # 【优化4】避免重复添加相同的匹配结果
+                            if nearFull_match not in uicomp_nearFull_hit_list:
+                                uicomp_nearFull_hit_list.append(nearFull_match)
+                                
+                        if keyword_match != -1:
+                            uicomponent_keywords_hit = 1
+                            if keyword_match not in uicomp_keywords_hit_list:
+                                uicomp_keywords_hit_list.append(keyword_match)
+                                tmp_assertion_states_annotated_hit += 1 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
+                                
+                        if text_match != -1:
+                            uicomponent_text_hit = 1
+                            if text_match not in uicomp_text_hit_list:
+                                uicomp_text_hit_list.append(text_match)
                 
-                # 【优化3】只有在有匹配过滤器时才进行UI组件检查
-                if match_filter:
-                    # 判断exec_ui_state.action是否在match_filter对应的节点字典中; if exec_ui_state.action.view is None (This is a problem exist in input_policy ), will return -1,-1,-1 (meaning no match at all)
-                    nearFull_match, keyword_match, text_match = check_oracle_in_uicomponents(  
-                        gr_ui_state, exec_ui_state.action, match_filter
-                    )
-                    
-                    # 记录各种匹配结果
-                    if nearFull_match != -1:
-                        uicomponent_nearFull_hit = 1
-                        # 【优化4】避免重复添加相同的匹配结果
-                        if nearFull_match not in uicomp_nearFull_hit_list:
-                            uicomp_nearFull_hit_list.append(nearFull_match)
-                            
-                    if keyword_match != -1:
-                        uicomponent_keywords_hit = 1
-                        if keyword_match not in uicomp_keywords_hit_list:
-                            uicomp_keywords_hit_list.append(keyword_match)
-                            
-                    if text_match != -1:
-                        uicomponent_text_hit = 1
-                        if text_match not in uicomp_text_hit_list:
-                            uicomp_text_hit_list.append(text_match)
-            
-            # 移动到下一个节点
-            node_id += 1
-            
-            # 【优化5】边界检查并更新exec_ui_state
-            if node_id < len(exec_trace):
-                exec_ui_state = exec_trace[node_id]
+                # 移动到下一个节点
+                node_id += 1
+                
+                # 【优化5】边界检查并更新exec_ui_state
+                if node_id < len(exec_trace):
+                    exec_ui_state = exec_trace[node_id]
         
         # 如果有click匹配状态，继续向前检查
         if click_match_states:
@@ -331,7 +611,9 @@ class TestbedEvaluator(BaseEvaluator):
                     if exec_ui_state_back.action.assert_accept is True:
                         if first_cmp:
                             node_start_oracle_id = node_id_back
-
+                            
+                            tmp_pages_annotated_hit = 1 # pages with annotated assertions and at least one hit, numerator(分子) for page-level recall and precision
+                            page_hit = 1
                             # 检查activity匹配
                             if check_activity_match(gr_ui_state, exec_ui_state_back):
                                 activity_hit = 1
@@ -364,6 +646,7 @@ class TestbedEvaluator(BaseEvaluator):
                                 uicomponent_keywords_hit = 1
                                 if keyword_match not in uicomp_keywords_hit_list:
                                     uicomp_keywords_hit_list.append(keyword_match)
+                                    tmp_assertion_states_annotated_hit += 1 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
                                     
                             if text_match != -1:
                                 uicomponent_text_hit = 1
@@ -383,6 +666,7 @@ class TestbedEvaluator(BaseEvaluator):
             node_start_id = node_start_id,
             node_start_oracle_id=node_start_oracle_id,
             oracle_dict=gr_ui_state.essential_state,
+            page_hit=page_hit,
             activity_hit=activity_hit,
             fuzzy_pageimg_hit=fuzzy_pageimg_hit,
             fuzzy_page_main_uicomps_hit=fuzzy_page_main_uicomps_hit,
@@ -397,12 +681,22 @@ class TestbedEvaluator(BaseEvaluator):
         
         # 【关键操作】将结果添加到hit_results列表中
         self.hit_results.append(oracle_hit_tuple)
+        
+        metrics = HitMetrics(
+            pages_annotated_hit=tmp_pages_annotated_hit,
+            assertion_states_exec_total=tmp_assertion_states_exec_total,
+            assertion_states_gen_total=tmp_assertion_states_gen_total,
+            assertion_states_annotated_total=tmp_assertion_states_annotated_total,
+            assertion_states_annotated_hit=tmp_assertion_states_annotated_hit,
+            is_assert_set=lst_is_assert_Set
+        )
         # 如果当前执行状态的action不是OracleEvent，while循环未执行，node_id未变化
         # 则需要手动将node_id加1，确保继续处理下一个节点
-        if not isinstance(exec_ui_state.action, OracleEvent):
-            return node_id + 1
-        
-        return node_id
+        if not isinstance(exec_ui_state_first.action, OracleEvent):
+            return node_id + 1, metrics
+        return node_id, metrics
+
+
 
         
 
