@@ -1,0 +1,64 @@
+% TikZ Charts for RASSDroid SAT-OTAA Analysis
+% Compile with pdflatex (requires pgfplots package)
+
+\documentclass{standalone}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\pgfplotsset{compat=1.17}
+
+\begin{document}
+
+% Performance Trend Chart
+\begin{tikzpicture}
+\begin{axis}[
+    title={RASSDroid SAT-OTAA Performance Trends},
+    xlabel={Version},
+    ylabel={Performance Score},
+    xmin=0.5, xmax=3.5,
+    ymin=0, ymax=0.7,
+    xtick={1,2,3},
+    xticklabels={06/13, 07/09, 07/29},
+    ytick={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+    width=12cm,
+    height=8cm,
+]
+
+% Task Completion Rate
+\addplot[
+    color=blue,
+    mark=square,
+    thick,
+    mark size=4pt,
+] coordinates {
+    (1,0.222) (2,0.230) (3,0.230)
+};
+
+% Page F1-Score  
+\addplot[
+    color=red,
+    mark=triangle,
+    thick,
+    mark size=4pt,
+] coordinates {
+    (1,0.432) (2,0.432) (3,0.458)
+};
+
+% Assertion F1-Score
+\addplot[
+    color=green!70!black,
+    mark=o,
+    thick,
+    mark size=4pt,
+] coordinates {
+    (1,0.179) (2,0.161) (3,0.211)
+};
+
+\legend{Task Completion, Page F1-Score, Assertion F1-Score}
+
+\end{axis}
+\end{tikzpicture}
+
+\end{document}

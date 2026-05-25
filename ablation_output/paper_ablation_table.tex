@@ -1,0 +1,24 @@
+% Enhanced Ablation Study Table for Academic Paper
+% Main results table with improved formatting
+
+\begin{table*}[htbp]
+\centering
+\caption{Ablation Study: Impact of SAT-OTAA and Conflict-Detection Components}
+\label{tab:ablation_study_main}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+\multirow{2}{*}{\textbf{System Configuration}} & \multirow{2}{*}{\textbf{Subgoal Completion}} & \multicolumn{4}{c}{\textbf{Page Navigation Performance}} & \multicolumn{3}{c}{\textbf{Assertion Verification Performance}} \\
+\cmidrule(lr){3-6} \cmidrule(l){7-9}
+& & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\
+\midrule
+Baseline (AutoDroid) & 7.4\% & 0.000 & 0.000 & 0.000 & 75.6\% & 0.000 & 0.000 & 0.000 \\
++ SAT-OTAA & 20.2\% & 41.2\% & 58.7\% & 48.4\% & 84.9\% & 12.9\% & 22.8\% & 16.5\% \\
++ SAT-OTAA + Conflict Detection & \textbf{22.7\%} & \textbf{36.5\%} & \textbf{55.6\%} & \textbf{44.1\%} & \textbf{84.7\%} & \textbf{14.2\%} & \textbf{26.2\%} & \textbf{18.4\%} \\
+\midrule
+\textit{Improvement (Full vs Baseline)} & \textit{+15.3pp} & \textit{+36.5pp} & \textit{+55.6pp} & \textit{+44.1pp} & \textit{+9.1pp} & \textit{+14.2pp} & \textit{+26.2pp} & \textit{+18.4pp} \\
+\textit{Improvement (Full vs SAT-OTAA)} & \textit{+2.5pp} & \textit{-4.7pp} & \textit{-3.1pp} & \textit{-4.3pp} & \textit{-0.2pp} & \textit{+1.3pp} & \textit{+3.4pp} & \textit{+1.9pp} \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}

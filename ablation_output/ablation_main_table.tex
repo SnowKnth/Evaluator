@@ -1,0 +1,17 @@
+
+\begin{table*}[htbp]
+\centering
+\caption{Ablation Study: Performance Comparison Across Different System Configurations}
+\label{tab:ablation_study}
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+\multirow{2}{*}{\textbf{Configuration}} & \multirow{2}{*}{\textbf{Subgoal}} & \multicolumn{4}{c}{\textbf{Page Navigation}} & \multicolumn{3}{c}{\textbf{Assertion Verification}} \\
+\cmidrule(lr){3-6} \cmidrule(l){7-9}
+& \textbf{Completion} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\
+\midrule
+Without SAT-OTAA & 7.4% $\pm$0.010 & 0.000 $\pm$0.000 & 0.000 $\pm$0.000 & 0.000 $\pm$0.000 & 0.756 $\pm$0.092 & 0.000 $\pm$0.000 & 0.000 $\pm$0.000 & 0.000 $\pm$0.000 \\
+SAT-OTAA w/o Conflict Detection & 20.2% & 0.412 & 0.587 & 0.484 & 0.849 & 0.129 & 0.228 & 0.165 \\
+\textbf{With SAT-OTAA (Full)} & \textbf{22.7% $\pm$0.004} & \textbf{0.365 $\pm$0.006} & \textbf{0.556 $\pm$0.028} & \textbf{0.441 $\pm$0.013} & \textbf{0.847 $\pm$0.004} & \textbf{0.142 $\pm$0.016} & \textbf{0.262 $\pm$0.029} & \textbf{0.184 $\pm$0.021} \\
+\bottomrule
+\end{tabular}
+\end{table*}

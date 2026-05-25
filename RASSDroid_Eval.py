@@ -1,6 +1,18 @@
+# # Run all 5 agents with all 3 step limits (15 total runs)
+# python RASSDroid_Eval.py --eval t --run_all
+
+# # Run a specific agent with all step limits
+# python RASSDroid_Eval.py --eval t --agent VASSODroid_No_Validation
+
+# # Run all agents with a specific step limit
+# python RASSDroid_Eval.py --eval t --step_limit 20
+
+# # Run a specific agent with a specific step limit
+# python RASSDroid_Eval.py --eval t --agent VASSODroid_No_Validation --step_limit 20
+
 import argparse
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from config import CONFIG
 from evaluator.agent import MobileAgent
@@ -11,15 +23,37 @@ from evaluator.task_trace import Agent, DatasetHelper, TaskCategory, TaskTrace
 from evaluator.testbed_evaluator import TestbedEvaluator
 
 
-class AutoUI(MobileAgent):
-    def __init__(self) -> None:
+# Agent configurations: agent_name -> (Agent enum, exec_trace_path)
+AGENT_CONFIGS: Dict[str, tuple] = {
+    # DeepSeek V3.2 (R1) versions
+    "VASSODroid_Full_Follow_and_Adapt_InTime": (Agent.VASSODroid_Full_Follow_and_Adapt_InTime, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_FULL_FOLLOW_AND_ADAPT_INTIME),
+    "VASSODroid_No_VASSO": (Agent.VASSODroid_No_VASSO, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_NO_VASSO),
+    "VASSODroid_Full_First_Follow_then_Adapt": (Agent.VASSODroid_Full_First_Follow_then_Adapt, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_FULL_FIRST_FOLLOW_THEN_ADAPT),
+    "VASSODroid_No_Interaction_Validation": (Agent.VASSODroid_No_Interaction_Validation, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_NO_INTERACTION_VALIDATION),
+    "AutoDroid": (Agent.AutoDroid, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_AUTODROID),
+
+    # DeepSeek V3 versions
+    "VASSODroid_Full_Follow_and_Adapt_InTime_DSV3": (Agent.VASSODroid_Full_Follow_and_Adapt_InTime_DeepseekV3, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_FULL_FOLLOW_AND_ADAPT_INTIME_DSV3),
+    "VASSODroid_Full_First_Follow_then_Adapt_DSV3": (Agent.VASSODroid_Full_First_Follow_then_Adapt_DeepseekV3, CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_FULL_FIRST_FOLLOW_THEN_ADAPT_DSV3),
+}
+
+# Step limits to evaluate
+STEP_LIMITS = [10, 20, 30]
+
+
+class VASSODroid(MobileAgent):
+    def __init__(self, agent_name: str = "VASSODroid_No_Validation", no_oracle_step_limit: int = 30) -> None:
         super().__init__()
-        self.agent = Agent.RASSDROID
-        # self.agent_exec_trace_path = CONFIG.RASSDROID_EXEC_TRACE_PATH
-        # self.agent_exec_trace_path = CONFIG.AUTODROID_DEEPSEEK_NO_SLEEP_EXEC_TRACE_PATH
-        self.agent_exec_trace_path = CONFIG.RASSDROID_ORACLE_EXEC_TRACE_PATH_07_29
-        # self.agent_exec_trace_path = CONFIG.exec_output_llamatouch_autodroid_deepseek_with_sleep_5s
-        # self.agent_exec_trace_path = CONFIG.exec_output_llamatouch_autodroid_deepseek_scroll_text
+        
+        if agent_name not in AGENT_CONFIGS:
+            raise ValueError(f"Unknown agent: {agent_name}. Available agents: {list(AGENT_CONFIGS.keys())}")
+        
+        agent_enum, exec_trace_path = AGENT_CONFIGS[agent_name]
+        
+        self.agent_name = agent_name
+        self.no_oracle_step_limit = no_oracle_step_limit
+        self.agent = agent_enum
+        self.agent_exec_trace_path = exec_trace_path
         
     def load_predicted_action_by_episode(self, episode: str) -> Optional[List[Action]]:
         '''extracts the action sequence from an agent execution trace. This is used for the two baseline evaluation approaches involving only action match.'''
@@ -52,11 +86,66 @@ if __name__ == "__main__":
     parser.add_argument(
         "--eval", type=str, help='Evaluation type: "testbed (t)" or "exact (e)"'
     )
+    parser.add_argument(
+        "--agent", type=str, default=None,
+        help=f'Agent name. Available: {list(AGENT_CONFIGS.keys())}. If not specified, run all agents.'
+    )
+    parser.add_argument(
+        "--step_limit", type=int, default=None,
+        help=f'Step limit. Available: {STEP_LIMITS}. If not specified, run all step limits.'
+    )
+    parser.add_argument(
+        "--run_all", action="store_true",
+        help='Run all agents with all step limits (overrides --agent and --step_limit)'
+    )
     args = parser.parse_args()
 
-    agent = AutoUI()
+    def run_testbed_evaluation(agent_name: str, step_limit: int, episodes: List[str] = None):
+        """Run testbed evaluation for a specific agent and step limit."""
+        print(f"\n{'='*80}")
+        print(f"Running Testbed Evaluation: Agent={agent_name}, StepLimit={step_limit}")
+        print(f"{'='*80}")
+        
+        agent = VASSODroid(agent_name=agent_name, no_oracle_step_limit=step_limit)
+        
+        eval_options = {
+            "categories": [
+                TaskCategory.GENERAL,
+                TaskCategory.GOOGLEAPPS,
+                TaskCategory.INSTALL,
+                TaskCategory.WEBSHOPPING,
+                TaskCategory.GENERATED,
+            ],
+            "check_fuzzy_match": True,
+            "check_exact_match": True,
+            "check_system_state": True,
+        }
+        
+        if episodes:
+            eval_options["episodes"] = episodes
+        
+        t = TestbedEvaluator(
+            agent=agent,
+            epi_metadata_path=CONFIG.EPI_METADATA_PATH,
+            gr_dataset_path=CONFIG.GR_DATASET_PATH,
+            options=eval_options,
+        )
+        t.no_oracle_step_limit = step_limit  # Set the step limit in evaluator
+        t.run_evaluation()
+        t.report_stats(
+            human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
+            only_human_eval_positive=False,
+        )
+        return t
 
-    if args.eval == "exact" or args.eval == "e":
+    def run_exact_evaluation(agent_name: str, step_limit: int):
+        """Run exact match evaluation for a specific agent and step limit."""
+        print(f"\n{'='*80}")
+        print(f"Running Exact Match Evaluation: Agent={agent_name}, StepLimit={step_limit}")
+        print(f"{'='*80}")
+        
+        agent = VASSODroid(agent_name=agent_name, no_oracle_step_limit=step_limit)
+        
         e = ExactMatchEvaluator(
             agent=agent,
             epi_metadata_path=CONFIG.EPI_METADATA_PATH,
@@ -75,47 +164,17 @@ if __name__ == "__main__":
         e.report_stats(
             human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
             only_human_eval_positive=False,
-            # suffix="only_human_success",
         )
+        return e
 
-    elif args.eval == "testbed" or args.eval == "t":
-        t = TestbedEvaluator(
-            agent=agent,
-            epi_metadata_path=CONFIG.EPI_METADATA_PATH,
-            gr_dataset_path=CONFIG.GR_DATASET_PATH,
-            options={
-                # only tasks of their categories in this list will be evaluated
-                # "categories": [
-                #     TaskCategory.GENERAL,
-                #     TaskCategory.GOOGLEAPPS,
-                #     TaskCategory.INSTALL,
-                #     TaskCategory.WEBSHOPPING,
-                #     TaskCategory.GENERATED,
-                # ],
-                "check_fuzzy_match": True,
-                "check_exact_match": True,
-                "check_system_state": True,
-                # "first_n":100,
-                # only evaluate selected tasks with the following episodes
-                "episodes": [
-                #     "69947946018315292528", # Case study
-                #    "48505427833490254358", # OracleObj.view is None
-                # "30385638682914557480",  # click
-                # "74876621317193717445",  #"generated/trace_56/4.ess": "activity<0>|exact<25>",
-                # "41129281445893361389", #click
-                "37", # click, page hit but not uicomponent hit
-                "34561995503958932589",  # one page with 3 annotated assertions, page hit and 2 uicomponent hits
-                "50827638723968537952", # 2 pages with 1 annotated assertion, one page with page hit and uicomponent hit, one page with only page hit
-                ],
-            },
-        )
-        t.run_evaluation()
-        t.report_stats(
-            human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
-            only_human_eval_positive=False,
-            # suffix="only_human_success",
-        )
-    elif args.eval == "lcs-exact" or args.eval == "lcse":
+    def run_lcs_evaluation(agent_name: str, step_limit: int):
+        """Run LCS match evaluation for a specific agent and step limit."""
+        print(f"\n{'='*80}")
+        print(f"Running LCS Match Evaluation: Agent={agent_name}, StepLimit={step_limit}")
+        print(f"{'='*80}")
+        
+        agent = VASSODroid(agent_name=agent_name, no_oracle_step_limit=step_limit)
+        
         t = LCSMatchEvaluator(
             agent=agent,
             epi_metadata_path=CONFIG.EPI_METADATA_PATH,
@@ -128,16 +187,71 @@ if __name__ == "__main__":
                     TaskCategory.WEBSHOPPING,
                     TaskCategory.GENERATED,
                 ],
-                
             },
         )
         t.run_evaluation()
         t.report_stats(
             human_eval_path=CONFIG.AUTOUI_HUMANEVAL_PATH,
             only_human_eval_positive=False,
-            # suffix="only_human_success",
         )
+        return t
+
+    # Determine which agents and step limits to run
+    if args.run_all:
+        agents_to_run = list(AGENT_CONFIGS.keys())
+        step_limits_to_run = STEP_LIMITS
+    else:
+        agents_to_run = [args.agent] if args.agent else list(AGENT_CONFIGS.keys())
+        step_limits_to_run = [args.step_limit] if args.step_limit else STEP_LIMITS
+
+    # Validate agent names
+    for agent_name in agents_to_run:
+        if agent_name not in AGENT_CONFIGS:
+            raise ValueError(f"Unknown agent: {agent_name}. Available agents: {list(AGENT_CONFIGS.keys())}")
+
+    # Validate step limits
+    for step_limit in step_limits_to_run:
+        if step_limit not in STEP_LIMITS:
+            print(f"Warning: Step limit {step_limit} is not in the predefined list {STEP_LIMITS}")
+
+    print(f"\n{'#'*80}")
+    print(f"Evaluation Configuration:")
+    print(f"  Evaluation Type: {args.eval}")
+    print(f"  Agents: {agents_to_run}")
+    print(f"  Step Limits: {step_limits_to_run}")
+    print(f"  Total Runs: {len(agents_to_run) * len(step_limits_to_run)}")
+    print(f"{'#'*80}")
+
+    # Run evaluations
+    results = {}
+    
+    if args.eval == "exact" or args.eval == "e":
+        for agent_name in agents_to_run:
+            for step_limit in step_limits_to_run:
+                key = f"{agent_name}_step{step_limit}"
+                results[key] = run_exact_evaluation(agent_name, step_limit)
+
+    elif args.eval == "testbed" or args.eval == "t":
+        for agent_name in agents_to_run:
+            for step_limit in step_limits_to_run:
+                key = f"{agent_name}_step{step_limit}"
+                results[key] = run_testbed_evaluation(agent_name, step_limit)
+
+    elif args.eval == "lcs-exact" or args.eval == "lcse":
+        for agent_name in agents_to_run:
+            for step_limit in step_limits_to_run:
+                key = f"{agent_name}_step{step_limit}"
+                results[key] = run_lcs_evaluation(agent_name, step_limit)
+
     else:
         raise Exception(
-            f"Invalid evaluation type: {args.eval}, expected: testbed/t and exact/e"
+            f"Invalid evaluation type: {args.eval}, expected: testbed/t, exact/e, or lcs-exact/lcse"
         )
+
+    # Print summary
+    print(f"\n{'#'*80}")
+    print("Evaluation Summary")
+    print(f"{'#'*80}")
+    print(f"Completed {len(results)} evaluation runs:")
+    for key in results:
+        print(f"  - {key}")

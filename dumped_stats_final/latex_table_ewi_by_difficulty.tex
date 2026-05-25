@@ -1,0 +1,220 @@
+% EWI Tables by Difficulty Level - Split into 3 Groups
+% Group 1: VASSODroid vs AutoDroid (RQ1 - Effectiveness)
+% Group 2: Ablation Study (RQ3)
+% Group 3: Strategy Comparison (V3 vs V3.2, Follow-and-Adapt vs First-Follow)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 1: VASSODroid vs AutoDroid (RQ1 - Effectiveness Comparison)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Overall (RQ1)}
+  \label{tab:ewi-rq1-overall}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 37 & 26 & 70.27 \\
+      AutoDroid & 17 & 8 & 47.06 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Easy (RQ1)}
+  \label{tab:ewi-rq1-easy}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 1 & 1 & 100.00 \\
+      AutoDroid & 2 & 0 & 0.00 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Medium (RQ1)}
+  \label{tab:ewi-rq1-mid}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 32 & 23 & 71.88 \\
+      AutoDroid & 13 & 6 & 46.15 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Hard (RQ1)}
+  \label{tab:ewi-rq1-hard}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 4 & 2 & 50.00 \\
+      AutoDroid & 2 & 2 & 100.00 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 2: Ablation Study (RQ3)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Overall (Ablation Study)}
+  \label{tab:ewi-ablation-overall}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 37 & 26 & 70.27 \\
+      \toolNameSmall{} w/o VASSO & 2 & 2 & 100.00 \\
+      \toolNameSmall{} w/o Interaction Validation & 36 & 25 & 69.44 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Easy (Ablation Study)}
+  \label{tab:ewi-ablation-easy}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 1 & 1 & 100.00 \\
+      \toolNameSmall{} w/o VASSO & 0 & 0 & 0.00 \\
+      \toolNameSmall{} w/o Interaction Validation & 3 & 3 & 100.00 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Medium (Ablation Study)}
+  \label{tab:ewi-ablation-mid}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 32 & 23 & 71.88 \\
+      \toolNameSmall{} w/o VASSO & 1 & 1 & 100.00 \\
+      \toolNameSmall{} w/o Interaction Validation & 30 & 20 & 66.67 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Hard (Ablation Study)}
+  \label{tab:ewi-ablation-hard}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{} & 4 & 2 & 50.00 \\
+      \toolNameSmall{} w/o VASSO & 1 & 1 & 100.00 \\
+      \toolNameSmall{} w/o Interaction Validation & 3 & 2 & 66.67 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 3: Strategy Comparison (Follow-and-Adapt vs First-Follow, V3 vs V3.2)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Overall (Strategy Comparison)}
+  \label{tab:ewi-strategy-overall}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 37 & 26 & 70.27 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 45 & 25 & 55.56 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 44 & 28 & 63.64 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 43 & 23 & 53.49 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Easy (Strategy Comparison)}
+  \label{tab:ewi-strategy-easy}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 1 & 1 & 100.00 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 3 & 3 & 100.00 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 2 & 1 & 50.00 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 3 & 2 & 66.67 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Medium (Strategy Comparison)}
+  \label{tab:ewi-strategy-mid}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 32 & 23 & 71.88 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 34 & 19 & 55.88 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 39 & 25 & 64.10 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 34 & 18 & 52.94 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Evidence Widget Identification (EWI) - Hard (Strategy Comparison)}
+  \label{tab:ewi-strategy-hard}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{\makecell{Key Essential States\\Correctly Recognized}} & \textbf{\makecell{Evidence Widget\\Correctly Identified}} & \textbf{Conditional Accuracy (\%)} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 4 & 2 & 50.00 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 8 & 3 & 37.50 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 3 & 2 & 66.67 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 6 & 3 & 50.00 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}

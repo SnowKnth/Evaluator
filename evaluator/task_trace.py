@@ -12,11 +12,27 @@ from .common.action_type import Action, ActionType
 
 
 class Agent(Enum):
-    APPAGENT = "AppAgent"
-    AUTOUI = "Auto-UI"
-    AUTODROID = "AutoDroid"
-    COCOAGENT = "CoCoAgent"
-    RASSDROID = "RASSDroid"
+    VASSODroid_Full_Follow_and_Adapt_InTime = "VASSODroid_Full_Follow_and_Adapt_InTime_Version_26-02-02"
+    VASSODroid_No_VASSO = "VASSODroid_No_VASSO_version_26-01-26"
+    VASSODroid_No_Interaction_Validation = "VASSODroid_No_Interaction_Validation_version_01-31"
+    AutoDroid = "AutoDroid_26-01-29"
+
+    VASSODroid_Full_First_Follow_then_Adapt = "VASSODroid_Full_First_Follow_then_Adapt_version_10-22"
+    VASSODroid_Full_Follow_and_Adapt_InTime_DeepseekV3 = "VASSODroid_Full_Follow_and_Adapt_InTime_DeepseekV3_07-09"
+    VASSODroid_Full_First_Follow_then_Adapt_DeepseekV3 = "VASSODroid_Full_First_Follow_then_Adapt_DeepseekV3_06-30"
+
+    # APPAGENT = "AppAgent"
+    # AUTOUI = "Auto-UI"
+    # AUTODROID = "AutoDroid"
+    # AUTODROID_25_1_12 = "AutoDroid_25-1-12"
+    # AUTODROID_Opt = "AutoDroid_w_Optimized_Interaction_26-01-29"
+    # AUTODROID_Ori = "AutoDroid_without_Optimized_Interaction_26-1-17"
+    # VASSODRIOD_GPT4o_mini = "VASSODroid_GPT4o_mini"
+    # VASSODroid_No_Validation = "VASSODroid_No_Validation_26-1-31"
+
+    # VASSODRIOD_replacing_VASSO = "VASSODroid_replacing_VASSO_25-1-6"
+    # COCOAGENT = "CoCoAgent"
+    # RASSDROID = "RASSDroid"
 
 
 class TaskCategory(Enum):
@@ -351,9 +367,13 @@ class DatasetHelper:
     def load_testbed_trace_by_path(self, path: str) -> TaskTrace:
         par_dir = os.path.dirname(path)
         last_dir = os.path.basename(par_dir)
-        event_dir = os.path.join(par_dir, last_dir, "events")
-        # 获取所有 .json 文件名
-        event_file_list = [f for f in os.listdir(event_dir) if f.endswith(".json")]
+        event_dir = os.path.join(par_dir, last_dir, "events") # by wxd, the event json files are stored in a separate "events" folder under the episode folder, which is different from other data modalities (xml, activity, action, screenshot) that are stored in the same folder. 
+        # event_dir = os.path.join(par_dir, "events") # by wxd
+        # 获取所有 .json 文件名, if event_dir exists
+        if os.path.exists(event_dir):
+            event_file_list = [f for f in os.listdir(event_dir) if f.endswith(".json")]
+        else:
+            event_file_list = []
         # 按名称排序
         event_file_list.sort()
         screenshot_folder_path = os.path.join(path, "screenshot")

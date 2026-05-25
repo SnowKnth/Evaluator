@@ -51,7 +51,7 @@ class HitMetrics(NamedTuple):
     assertion_states_gen_total: int
     assertion_states_annotated_total: int
     assertion_states_annotated_hit: int
-    is_assert_set: bool
+    is_assert_widget_set: bool
 
     
 
@@ -63,12 +63,13 @@ class TestbedEvaluator(BaseEvaluator):
         epi_metadata_path: str,
         gr_dataset_path: str,
         options: Dict = None,
+        no_oracle_step_limit: int = 30,
     ) -> None:
         super().__init__(agent, epi_metadata_path, gr_dataset_path, options)
         self.evaluator_name = self.__class__.__name__
         self.hit_results: List[OracleHitTuple] = []
-        
-        self.no_oracle_step_limit = 20
+
+        self.no_oracle_step_limit = no_oracle_step_limit
         
         self.unerror_episodes_total: int = 0
         self.completed_episodes_count: int = 0
@@ -131,21 +132,22 @@ class TestbedEvaluator(BaseEvaluator):
         self.assertion_states_annotated_total: int = 0 # total annotated assertion states, denominator(分母) for assertion-level recall
         self.assertion_states_annotated_hit: int = 0 # annotated assertion states with hit, numerator(分子) for assertion-level recall and precision
         self.assertion_states_no_annotation_nor_gen_total: int = 0 # true negative: assertion states without annotated assertions and without generated assertions; along with assertion_states_annotated_hit, numerator(分子) for assertion-level accuracy
-
-        #self.assertions_in_recognized_pages_with_widget_assertions: int = 0 # total annotated assertions in recognized pages with annotated widget assertions
-        #self.evidence_widget_hits_in_recognized_pages_with_widget_assertions: int = 0 # total evidence widget hits in recognized pages with annotated widget assertions
         
         self.recognized_pages_with_widget_assertions: int = 0 # total recognized pages with annotated widget assertions
         self.recognized_pages_with_widget_assertions_and_evidence_widget_hits: int = 0 # total pages with annotated widget assertions and evidence widget hits
-        
+        self.widget_hit_rate: float = 0.0
+
         self.recognized_pages_with_widget_assertions_easy: int = 0
         self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_easy: int = 0
+        self.widget_hit_rate_easy: float = 0.0
         
         self.recognized_pages_with_widget_assertions_mid: int = 0
         self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_mid: int = 0
+        self.widget_hit_rate_mid: float = 0.0
         
         self.recognized_pages_with_widget_assertions_hard: int = 0
         self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_hard: int = 0
+        self.widget_hit_rate_hard: float = 0.0
 
         self.total_actions_pos_for_finished_key_subtask: int = 0
         self.average_actions_pos_for_finished_key_subtask: float = 0.0
@@ -158,6 +160,9 @@ class TestbedEvaluator(BaseEvaluator):
 
         self.total_actions_pos_for_finished_key_subtask_hard: int = 0
         self.average_actions_pos_for_finished_key_subtask_hard: float = 0.0
+        
+                #self.assertions_in_recognized_pages_with_widget_assertions: int = 0 # total annotated assertions in recognized pages with annotated widget assertions
+        #self.evidence_widget_hits_in_recognized_pages_with_widget_assertions: int = 0 # total evidence widget hits in recognized pages with annotated widget assertions
 
         """Ablation Study
         1. fuzzy_match
@@ -231,10 +236,34 @@ class TestbedEvaluator(BaseEvaluator):
         if not exec_trace:
             return False, FailedReason.EXEC_TRACE_NOT_FOUND
         
+        # Determine difficulty level based on gr_trace length
+        gr_trace_len = len(gr_trace)
+        if gr_trace_len < 4:
+            difficulty = "easy"
+        elif gr_trace_len < 8:
+            difficulty = "mid"
+        else:
+            difficulty = "hard"
+        
+        # Track unerror episodes by difficulty
+        self.unerror_episodes_total += 1
+        if difficulty == "easy":
+            self.unerror_episodes_total_easy += 1
+        elif difficulty == "mid":
+            self.unerror_episodes_total_mid += 1
+        else:
+            self.unerror_episodes_total_hard += 1
+        
         for ui_state in gr_trace:          
             # if the current UIState contains no essential state, go to the next
             if ui_state.essential_state is not None:
                 self.key_subtasks_total += 1
+                if difficulty == "easy":
+                    self.key_subtasks_total_easy += 1
+                elif difficulty == "mid":
+                    self.key_subtasks_total_mid += 1
+                else:
+                    self.key_subtasks_total_hard += 1
         
         # ---------------------------------------------------------------------
         # Page-level metrics bookkeeping (KESR at "page" granularity)
@@ -381,6 +410,19 @@ class TestbedEvaluator(BaseEvaluator):
                     tmp_pages_annotated_total += 1
                     gr_ui_state_matched = True
                     self.completed_key_subtasks += 1
+                    
+                    # Track action position for finished key subtask
+                    self.total_actions_pos_for_finished_key_subtask += i_no_oracle
+                    
+                    if difficulty == "easy":
+                        self.completed_key_subtasks_easy += 1
+                        self.total_actions_pos_for_finished_key_subtask_easy += i_no_oracle
+                    elif difficulty == "mid":
+                        self.completed_key_subtasks_mid += 1
+                        self.total_actions_pos_for_finished_key_subtask_mid += i_no_oracle
+                    else:
+                        self.completed_key_subtasks_hard += 1
+                        self.total_actions_pos_for_finished_key_subtask_hard += i_no_oracle
                     # click_match_states: List[str] = ui_state.get(EssentialStateKeyword.CLICK, None)
                     i,  hit_metrics = self.calc_hit_results(episode, ui_state, exec_trace, i) # # 114 (without), 100? with this line ; 排查 Oracle.view is None 的原因
                     last_is_assert = False # 自动向前一步，last_is_assert = False 
@@ -391,11 +433,50 @@ class TestbedEvaluator(BaseEvaluator):
                     self.pages_annotated_hit += tmp_pages_annotated_hit + hit_metrics.pages_annotated_hit # only latter added
                     self.pages_no_annotation_nor_gen_total += tmp_pages_no_annotation_nor_gen_total
                     
+                    # Track page-level metrics by difficulty
+                    if difficulty == "easy":
+                        self.pages_exec_total_easy += tmp_pages_exec_total
+                        self.pages_gen_total_easy += tmp_pages_gen_total
+                        self.pages_annotated_total_easy += tmp_pages_annotated_total
+                        self.pages_annotated_hit_easy += tmp_pages_annotated_hit + hit_metrics.pages_annotated_hit
+                        self.pages_no_annotation_nor_gen_total_easy += tmp_pages_no_annotation_nor_gen_total
+                    elif difficulty == "mid":
+                        self.pages_exec_total_mid += tmp_pages_exec_total
+                        self.pages_gen_total_mid += tmp_pages_gen_total
+                        self.pages_annotated_total_mid += tmp_pages_annotated_total
+                        self.pages_annotated_hit_mid += tmp_pages_annotated_hit + hit_metrics.pages_annotated_hit
+                        self.pages_no_annotation_nor_gen_total_mid += tmp_pages_no_annotation_nor_gen_total
+                    else:
+                        self.pages_exec_total_hard += tmp_pages_exec_total
+                        self.pages_gen_total_hard += tmp_pages_gen_total
+                        self.pages_annotated_total_hard += tmp_pages_annotated_total
+                        self.pages_annotated_hit_hard += tmp_pages_annotated_hit + hit_metrics.pages_annotated_hit
+                        self.pages_no_annotation_nor_gen_total_hard += tmp_pages_no_annotation_nor_gen_total
+                    
                     self.assertion_states_exec_total += tmp_assertion_states_exec_total + hit_metrics.assertion_states_exec_total
                     self.assertion_states_gen_total += tmp_assertion_states_gen_total + hit_metrics.assertion_states_gen_total
                     self.assertion_states_annotated_total += tmp_assertion_states_annotated_total + hit_metrics.assertion_states_annotated_total # only latter added
                     self.assertion_states_annotated_hit += tmp_assertion_states_annotated_hit + hit_metrics.assertion_states_annotated_hit # only latter added
                     self.assertion_states_no_annotation_nor_gen_total += tmp_assertion_states_no_annotation_nor_gen_total
+                    
+                    # Track recognized pages with widget assertions by difficulty
+                    if hit_metrics.is_assert_widget_set and hit_metrics.pages_annotated_hit > 0: # only count when page has widget assertions and assertion is generated
+                        self.recognized_pages_with_widget_assertions += 1
+                        if difficulty == "easy":
+                            self.recognized_pages_with_widget_assertions_easy += 1
+                        elif difficulty == "mid":
+                            self.recognized_pages_with_widget_assertions_mid += 1
+                        else:
+                            self.recognized_pages_with_widget_assertions_hard += 1
+                        
+                        if hit_metrics.assertion_states_annotated_hit > 0:
+                            self.recognized_pages_with_widget_assertions_and_evidence_widget_hits += 1
+                            if difficulty == "easy":
+                                self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_easy += 1
+                            elif difficulty == "mid":
+                                self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_mid += 1
+                            else:
+                                self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_hard += 1
                                             
                     tmp_pages_exec_total: int = 0 # total pages in execution trace, denominator(分母) for page-level accuracy
                     tmp_pages_gen_total: int = 0 # total pages with generated assertions, denominator(分母) for page-level precision
@@ -411,7 +492,7 @@ class TestbedEvaluator(BaseEvaluator):
                     total_calculated = TP_pages + FP_pages + FN_pages + TN_pages
                     
                     if total_calculated != self.pages_exec_total:
-                        error_log_file = "dumped_stats/confusion_matrix_errors.log"
+                        error_log_file = f"dumped_stats/confusion_matrix_errors_{self.agent.agent_name}_limit_{self.no_oracle_step_limit}.log"
                         os.makedirs(os.path.dirname(error_log_file), exist_ok=True)
                         with open(error_log_file, "a", encoding="utf-8") as f:
                             f.write(f"Episode: {episode}\n")
@@ -442,6 +523,15 @@ class TestbedEvaluator(BaseEvaluator):
             else:
                 return False, None
 
+        # Task completed successfully - track completed episodes by difficulty
+        self.completed_episodes_count += 1
+        if difficulty == "easy":
+            self.completed_episodes_count_easy += 1
+        elif difficulty == "mid":
+            self.completed_episodes_count_mid += 1
+        else:
+            self.completed_episodes_count_hard += 1
+
         return True, None
 
     def post_evaluation_hook(self) -> None:
@@ -451,12 +541,12 @@ class TestbedEvaluator(BaseEvaluator):
         print(f"DEBUG: hit_results length: {len(self.hit_results)}")  # 添加调试信息
         if self.hit_results:
             print(f"DEBUG: First hit result: {self.hit_results[0]}")
-        
-        file_name = f"dumped_stats/oracle_hit_results_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
+
+        file_name = f"dumped_stats_final/oracle_hit_results_{self.evaluator_name}_{self.agent.agent_name}_limit_{self.no_oracle_step_limit}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
         self.dump_hit_results(file_name)
         
         # 计算并输出统计指标
-        metrics_file_name = f"dumped_stats/evaluation_metrics_{self.evaluator_name}_{self.agent.agent_name}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
+        metrics_file_name = f"dumped_stats_final/evaluation_metrics_{self.evaluator_name}_{self.agent.agent_name}_limit_{self.no_oracle_step_limit}_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.csv"
         self.dump_evaluation_metrics(metrics_file_name)
         
 
@@ -553,62 +643,216 @@ class TestbedEvaluator(BaseEvaluator):
         # 确保目录存在
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         
-        # 计算页面级别指标
+        # 计算页面级别指标 (Overall)
         page_precision = self.pages_annotated_hit / self.pages_gen_total if self.pages_gen_total > 0 else 0.0
         page_recall = self.pages_annotated_hit / self.pages_annotated_total if self.pages_annotated_total > 0 else 0.0
         page_accuracy = (self.pages_annotated_hit + self.pages_no_annotation_nor_gen_total) / self.pages_exec_total if self.pages_exec_total > 0 else 0.0
         page_f1 = 2 * page_precision * page_recall / (page_precision + page_recall) if (page_precision + page_recall) > 0 else 0.0
         
-        # 计算断言级别指标
+        # 计算页面级别指标 (Easy)
+        page_precision_easy = self.pages_annotated_hit_easy / self.pages_gen_total_easy if self.pages_gen_total_easy > 0 else 0.0
+        page_recall_easy = self.pages_annotated_hit_easy / self.pages_annotated_total_easy if self.pages_annotated_total_easy > 0 else 0.0
+        page_accuracy_easy = (self.pages_annotated_hit_easy + self.pages_no_annotation_nor_gen_total_easy) / self.pages_exec_total_easy if self.pages_exec_total_easy > 0 else 0.0
+        page_f1_easy = 2 * page_precision_easy * page_recall_easy / (page_precision_easy + page_recall_easy) if (page_precision_easy + page_recall_easy) > 0 else 0.0
+        
+        # 计算页面级别指标 (Mid)
+        page_precision_mid = self.pages_annotated_hit_mid / self.pages_gen_total_mid if self.pages_gen_total_mid > 0 else 0.0
+        page_recall_mid = self.pages_annotated_hit_mid / self.pages_annotated_total_mid if self.pages_annotated_total_mid > 0 else 0.0
+        page_accuracy_mid = (self.pages_annotated_hit_mid + self.pages_no_annotation_nor_gen_total_mid) / self.pages_exec_total_mid if self.pages_exec_total_mid > 0 else 0.0
+        page_f1_mid = 2 * page_precision_mid * page_recall_mid / (page_precision_mid + page_recall_mid) if (page_precision_mid + page_recall_mid) > 0 else 0.0
+        
+        # 计算页面级别指标 (Hard)
+        page_precision_hard = self.pages_annotated_hit_hard / self.pages_gen_total_hard if self.pages_gen_total_hard > 0 else 0.0
+        page_recall_hard = self.pages_annotated_hit_hard / self.pages_annotated_total_hard if self.pages_annotated_total_hard > 0 else 0.0
+        page_accuracy_hard = (self.pages_annotated_hit_hard + self.pages_no_annotation_nor_gen_total_hard) / self.pages_exec_total_hard if self.pages_exec_total_hard > 0 else 0.0
+        page_f1_hard = 2 * page_precision_hard * page_recall_hard / (page_precision_hard + page_recall_hard) if (page_precision_hard + page_recall_hard) > 0 else 0.0
+        
+        # 计算断言级别指标 (Overall)
         assertion_precision = self.assertion_states_annotated_hit / self.assertion_states_gen_total if self.assertion_states_gen_total > 0 else 0.0
         assertion_recall = self.assertion_states_annotated_hit / self.assertion_states_annotated_total if self.assertion_states_annotated_total > 0 else 0.0
         assertion_accuracy = (self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total) / self.assertion_states_exec_total if self.assertion_states_exec_total > 0 else 0.0
         assertion_f1 = 2 * assertion_precision * assertion_recall / (assertion_precision + assertion_recall) if (assertion_precision + assertion_recall) > 0 else 0.0
         
-        # 计算任务完成率
-        task_completion_rate = self.completed_key_subtasks / self.key_subtasks_total if self.key_subtasks_total > 0 else 0.0
+        # 计算TAR (Task Completion Rate)
+        self.TAR = self.completed_episodes_count / self.unerror_episodes_total if self.unerror_episodes_total > 0 else 0.0
+        self.TAR_easy = self.completed_episodes_count_easy / self.unerror_episodes_total_easy if self.unerror_episodes_total_easy > 0 else 0.0
+        self.TAR_mid = self.completed_episodes_count_mid / self.unerror_episodes_total_mid if self.unerror_episodes_total_mid > 0 else 0.0
+        self.TAR_hard = self.completed_episodes_count_hard / self.unerror_episodes_total_hard if self.unerror_episodes_total_hard > 0 else 0.0
+        
+        # 计算KSAR (Key Subtask Completion Rate)
+        self.KSAR = self.completed_key_subtasks / self.key_subtasks_total if self.key_subtasks_total > 0 else 0.0
+        self.KSAR_easy = self.completed_key_subtasks_easy / self.key_subtasks_total_easy if self.key_subtasks_total_easy > 0 else 0.0
+        self.KSAR_mid = self.completed_key_subtasks_mid / self.key_subtasks_total_mid if self.key_subtasks_total_mid > 0 else 0.0
+        self.KSAR_hard = self.completed_key_subtasks_hard / self.key_subtasks_total_hard if self.key_subtasks_total_hard > 0 else 0.0
+        
+        # 计算widget_hit_rate
+        self.widget_hit_rate = self.recognized_pages_with_widget_assertions_and_evidence_widget_hits / self.recognized_pages_with_widget_assertions if self.recognized_pages_with_widget_assertions > 0 else 0.0
+        self.widget_hit_rate_easy = self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_easy / self.recognized_pages_with_widget_assertions_easy if self.recognized_pages_with_widget_assertions_easy > 0 else 0.0
+        self.widget_hit_rate_mid = self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_mid / self.recognized_pages_with_widget_assertions_mid if self.recognized_pages_with_widget_assertions_mid > 0 else 0.0
+        self.widget_hit_rate_hard = self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_hard / self.recognized_pages_with_widget_assertions_hard if self.recognized_pages_with_widget_assertions_hard > 0 else 0.0
+        
+        # 计算average_actions_pos_for_finished_key_subtask
+        self.average_actions_pos_for_finished_key_subtask = self.total_actions_pos_for_finished_key_subtask / self.completed_key_subtasks if self.completed_key_subtasks > 0 else 0.0
+        self.average_actions_pos_for_finished_key_subtask_easy = self.total_actions_pos_for_finished_key_subtask_easy / self.completed_key_subtasks_easy if self.completed_key_subtasks_easy > 0 else 0.0
+        self.average_actions_pos_for_finished_key_subtask_mid = self.total_actions_pos_for_finished_key_subtask_mid / self.completed_key_subtasks_mid if self.completed_key_subtasks_mid > 0 else 0.0
+        self.average_actions_pos_for_finished_key_subtask_hard = self.total_actions_pos_for_finished_key_subtask_hard / self.completed_key_subtasks_hard if self.completed_key_subtasks_hard > 0 else 0.0
         
         # 准备输出数据
         metrics_data = [
-            # 任务级别指标
-            {"metric_type": "task", "metric_name": "completion_rate", "value": task_completion_rate, 
+            # ========== Overall Metrics ==========
+            # TAR (Task Completion Rate)
+            {"metric_type": "task_overall", "metric_name": "TAR", "value": self.TAR,
+             "numerator": self.completed_episodes_count, "denominator": self.unerror_episodes_total},
+            
+            # KSAR (Key Subtask Completion Rate)
+            {"metric_type": "task_overall", "metric_name": "KSAR", "value": self.KSAR,
              "numerator": self.completed_key_subtasks, "denominator": self.key_subtasks_total},
             
+            # Widget Hit Rate
+            {"metric_type": "widget_overall", "metric_name": "widget_hit_rate", "value": self.widget_hit_rate,
+             "numerator": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits, "denominator": self.recognized_pages_with_widget_assertions},
+            
+            # Average Actions Position
+            {"metric_type": "efficiency_overall", "metric_name": "avg_actions_pos", "value": self.average_actions_pos_for_finished_key_subtask,
+             "numerator": self.total_actions_pos_for_finished_key_subtask, "denominator": self.completed_key_subtasks},
+            
             # 页面级别指标
-            {"metric_type": "page", "metric_name": "precision", "value": page_precision,
+            {"metric_type": "page_overall", "metric_name": "precision", "value": page_precision,
              "numerator": self.pages_annotated_hit, "denominator": self.pages_gen_total},
-            {"metric_type": "page", "metric_name": "recall", "value": page_recall,
+            {"metric_type": "page_overall", "metric_name": "recall", "value": page_recall,
              "numerator": self.pages_annotated_hit, "denominator": self.pages_annotated_total},
-            {"metric_type": "page", "metric_name": "accuracy", "value": page_accuracy,
+            {"metric_type": "page_overall", "metric_name": "accuracy", "value": page_accuracy,
              "numerator": self.pages_annotated_hit + self.pages_no_annotation_nor_gen_total, "denominator": self.pages_exec_total},
-            {"metric_type": "page", "metric_name": "f1_score", "value": page_f1,
+            {"metric_type": "page_overall", "metric_name": "f1_score", "value": page_f1,
              "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
             
             # 断言级别指标
-            {"metric_type": "assertion", "metric_name": "precision", "value": assertion_precision,
+            {"metric_type": "assertion_overall", "metric_name": "precision", "value": assertion_precision,
              "numerator": self.assertion_states_annotated_hit, "denominator": self.assertion_states_gen_total},
-            {"metric_type": "assertion", "metric_name": "recall", "value": assertion_recall,
+            {"metric_type": "assertion_overall", "metric_name": "recall", "value": assertion_recall,
              "numerator": self.assertion_states_annotated_hit, "denominator": self.assertion_states_annotated_total},
-            {"metric_type": "assertion", "metric_name": "accuracy", "value": assertion_accuracy,
+            {"metric_type": "assertion_overall", "metric_name": "accuracy", "value": assertion_accuracy,
              "numerator": self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total, "denominator": self.assertion_states_exec_total},
-            {"metric_type": "assertion", "metric_name": "f1_score", "value": assertion_f1,
+            {"metric_type": "assertion_overall", "metric_name": "f1_score", "value": assertion_f1,
+             "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
+            
+            # ========== Easy Difficulty Metrics ==========
+            {"metric_type": "task_easy", "metric_name": "TAR", "value": self.TAR_easy,
+             "numerator": self.completed_episodes_count_easy, "denominator": self.unerror_episodes_total_easy},
+            {"metric_type": "task_easy", "metric_name": "KSAR", "value": self.KSAR_easy,
+             "numerator": self.completed_key_subtasks_easy, "denominator": self.key_subtasks_total_easy},
+            {"metric_type": "widget_easy", "metric_name": "widget_hit_rate", "value": self.widget_hit_rate_easy,
+             "numerator": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_easy, "denominator": self.recognized_pages_with_widget_assertions_easy},
+            {"metric_type": "efficiency_easy", "metric_name": "avg_actions_pos", "value": self.average_actions_pos_for_finished_key_subtask_easy,
+             "numerator": self.total_actions_pos_for_finished_key_subtask_easy, "denominator": self.completed_key_subtasks_easy},
+            {"metric_type": "page_easy", "metric_name": "precision", "value": page_precision_easy,
+             "numerator": self.pages_annotated_hit_easy, "denominator": self.pages_gen_total_easy},
+            {"metric_type": "page_easy", "metric_name": "recall", "value": page_recall_easy,
+             "numerator": self.pages_annotated_hit_easy, "denominator": self.pages_annotated_total_easy},
+            {"metric_type": "page_easy", "metric_name": "accuracy", "value": page_accuracy_easy,
+             "numerator": self.pages_annotated_hit_easy + self.pages_no_annotation_nor_gen_total_easy, "denominator": self.pages_exec_total_easy},
+            {"metric_type": "page_easy", "metric_name": "f1_score", "value": page_f1_easy,
+             "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
+            
+            # ========== Mid Difficulty Metrics ==========
+            {"metric_type": "task_mid", "metric_name": "TAR", "value": self.TAR_mid,
+             "numerator": self.completed_episodes_count_mid, "denominator": self.unerror_episodes_total_mid},
+            {"metric_type": "task_mid", "metric_name": "KSAR", "value": self.KSAR_mid,
+             "numerator": self.completed_key_subtasks_mid, "denominator": self.key_subtasks_total_mid},
+            {"metric_type": "widget_mid", "metric_name": "widget_hit_rate", "value": self.widget_hit_rate_mid,
+             "numerator": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_mid, "denominator": self.recognized_pages_with_widget_assertions_mid},
+            {"metric_type": "efficiency_mid", "metric_name": "avg_actions_pos", "value": self.average_actions_pos_for_finished_key_subtask_mid,
+             "numerator": self.total_actions_pos_for_finished_key_subtask_mid, "denominator": self.completed_key_subtasks_mid},
+            {"metric_type": "page_mid", "metric_name": "precision", "value": page_precision_mid,
+             "numerator": self.pages_annotated_hit_mid, "denominator": self.pages_gen_total_mid},
+            {"metric_type": "page_mid", "metric_name": "recall", "value": page_recall_mid,
+             "numerator": self.pages_annotated_hit_mid, "denominator": self.pages_annotated_total_mid},
+            {"metric_type": "page_mid", "metric_name": "accuracy", "value": page_accuracy_mid,
+             "numerator": self.pages_annotated_hit_mid + self.pages_no_annotation_nor_gen_total_mid, "denominator": self.pages_exec_total_mid},
+            {"metric_type": "page_mid", "metric_name": "f1_score", "value": page_f1_mid,
+             "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
+            
+            # ========== Hard Difficulty Metrics ==========
+            {"metric_type": "task_hard", "metric_name": "TAR", "value": self.TAR_hard,
+             "numerator": self.completed_episodes_count_hard, "denominator": self.unerror_episodes_total_hard},
+            {"metric_type": "task_hard", "metric_name": "KSAR", "value": self.KSAR_hard,
+             "numerator": self.completed_key_subtasks_hard, "denominator": self.key_subtasks_total_hard},
+            {"metric_type": "widget_hard", "metric_name": "widget_hit_rate", "value": self.widget_hit_rate_hard,
+             "numerator": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_hard, "denominator": self.recognized_pages_with_widget_assertions_hard},
+            {"metric_type": "efficiency_hard", "metric_name": "avg_actions_pos", "value": self.average_actions_pos_for_finished_key_subtask_hard,
+             "numerator": self.total_actions_pos_for_finished_key_subtask_hard, "denominator": self.completed_key_subtasks_hard},
+            {"metric_type": "page_hard", "metric_name": "precision", "value": page_precision_hard,
+             "numerator": self.pages_annotated_hit_hard, "denominator": self.pages_gen_total_hard},
+            {"metric_type": "page_hard", "metric_name": "recall", "value": page_recall_hard,
+             "numerator": self.pages_annotated_hit_hard, "denominator": self.pages_annotated_total_hard},
+            {"metric_type": "page_hard", "metric_name": "accuracy", "value": page_accuracy_hard,
+             "numerator": self.pages_annotated_hit_hard + self.pages_no_annotation_nor_gen_total_hard, "denominator": self.pages_exec_total_hard},
+            {"metric_type": "page_hard", "metric_name": "f1_score", "value": page_f1_hard,
              "numerator": "2*P*R/(P+R)", "denominator": "calculated"},
         ]
         
         # 添加原始统计数据
         raw_stats = [
-            {"metric_type": "raw_stats", "metric_name": "key_subtasks_total", "value": self.key_subtasks_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "completed_key_subtasks", "value": self.completed_key_subtasks, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "pages_exec_total", "value": self.pages_exec_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "pages_gen_total", "value": self.pages_gen_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "pages_annotated_total", "value": self.pages_annotated_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "pages_annotated_hit", "value": self.pages_annotated_hit, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "pages_no_annotation_nor_gen_total", "value": self.pages_no_annotation_nor_gen_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "assertion_states_exec_total", "value": self.assertion_states_exec_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "assertion_states_gen_total", "value": self.assertion_states_gen_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "assertion_states_annotated_total", "value": self.assertion_states_annotated_total, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "assertion_states_annotated_hit", "value": self.assertion_states_annotated_hit, "numerator": "", "denominator": ""},
-            {"metric_type": "raw_stats", "metric_name": "assertion_states_no_annotation_nor_gen_total", "value": self.assertion_states_no_annotation_nor_gen_total, "numerator": "", "denominator": ""},
+            # Overall raw stats
+            {"metric_type": "raw_stats_overall", "metric_name": "unerror_episodes_total", "value": self.unerror_episodes_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "completed_episodes_count", "value": self.completed_episodes_count, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "key_subtasks_total", "value": self.key_subtasks_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "completed_key_subtasks", "value": self.completed_key_subtasks, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "pages_exec_total", "value": self.pages_exec_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "pages_gen_total", "value": self.pages_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "pages_annotated_total", "value": self.pages_annotated_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "pages_annotated_hit", "value": self.pages_annotated_hit, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "pages_no_annotation_nor_gen_total", "value": self.pages_no_annotation_nor_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "assertion_states_exec_total", "value": self.assertion_states_exec_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "assertion_states_gen_total", "value": self.assertion_states_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "assertion_states_annotated_total", "value": self.assertion_states_annotated_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "assertion_states_annotated_hit", "value": self.assertion_states_annotated_hit, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "assertion_states_no_annotation_nor_gen_total", "value": self.assertion_states_no_annotation_nor_gen_total, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "recognized_pages_with_widget_assertions", "value": self.recognized_pages_with_widget_assertions, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "recognized_pages_with_widget_assertions_and_evidence_widget_hits", "value": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_overall", "metric_name": "total_actions_pos_for_finished_key_subtask", "value": self.total_actions_pos_for_finished_key_subtask, "numerator": "", "denominator": ""},
+            
+            # Easy raw stats
+            {"metric_type": "raw_stats_easy", "metric_name": "unerror_episodes_total", "value": self.unerror_episodes_total_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "completed_episodes_count", "value": self.completed_episodes_count_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "key_subtasks_total", "value": self.key_subtasks_total_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "completed_key_subtasks", "value": self.completed_key_subtasks_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "pages_exec_total", "value": self.pages_exec_total_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "pages_gen_total", "value": self.pages_gen_total_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "pages_annotated_total", "value": self.pages_annotated_total_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "pages_annotated_hit", "value": self.pages_annotated_hit_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "pages_no_annotation_nor_gen_total", "value": self.pages_no_annotation_nor_gen_total_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "recognized_pages_with_widget_assertions", "value": self.recognized_pages_with_widget_assertions_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "recognized_pages_with_widget_assertions_and_evidence_widget_hits", "value": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_easy, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_easy", "metric_name": "total_actions_pos_for_finished_key_subtask", "value": self.total_actions_pos_for_finished_key_subtask_easy, "numerator": "", "denominator": ""},
+            
+            # Mid raw stats
+            {"metric_type": "raw_stats_mid", "metric_name": "unerror_episodes_total", "value": self.unerror_episodes_total_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "completed_episodes_count", "value": self.completed_episodes_count_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "key_subtasks_total", "value": self.key_subtasks_total_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "completed_key_subtasks", "value": self.completed_key_subtasks_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "pages_exec_total", "value": self.pages_exec_total_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "pages_gen_total", "value": self.pages_gen_total_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "pages_annotated_total", "value": self.pages_annotated_total_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "pages_annotated_hit", "value": self.pages_annotated_hit_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "pages_no_annotation_nor_gen_total", "value": self.pages_no_annotation_nor_gen_total_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "recognized_pages_with_widget_assertions", "value": self.recognized_pages_with_widget_assertions_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "recognized_pages_with_widget_assertions_and_evidence_widget_hits", "value": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_mid, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_mid", "metric_name": "total_actions_pos_for_finished_key_subtask", "value": self.total_actions_pos_for_finished_key_subtask_mid, "numerator": "", "denominator": ""},
+            
+            # Hard raw stats
+            {"metric_type": "raw_stats_hard", "metric_name": "unerror_episodes_total", "value": self.unerror_episodes_total_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "completed_episodes_count", "value": self.completed_episodes_count_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "key_subtasks_total", "value": self.key_subtasks_total_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "completed_key_subtasks", "value": self.completed_key_subtasks_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "pages_exec_total", "value": self.pages_exec_total_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "pages_gen_total", "value": self.pages_gen_total_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "pages_annotated_total", "value": self.pages_annotated_total_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "pages_annotated_hit", "value": self.pages_annotated_hit_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "pages_no_annotation_nor_gen_total", "value": self.pages_no_annotation_nor_gen_total_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "recognized_pages_with_widget_assertions", "value": self.recognized_pages_with_widget_assertions_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "recognized_pages_with_widget_assertions_and_evidence_widget_hits", "value": self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_hard, "numerator": "", "denominator": ""},
+            {"metric_type": "raw_stats_hard", "metric_name": "total_actions_pos_for_finished_key_subtask", "value": self.total_actions_pos_for_finished_key_subtask_hard, "numerator": "", "denominator": ""},
         ]
         
         # 合并所有数据
@@ -622,8 +866,13 @@ class TestbedEvaluator(BaseEvaluator):
             writer.writerows(all_data)
         
         # 打印关键指标到控制台
-        print(f"\n=== Evaluation Metrics ===")
-        print(f"Task Completion Rate: {task_completion_rate:.4f} ({self.completed_key_subtasks}/{self.key_subtasks_total})")
+        print(f"\n{'='*60}")
+        print(f"=== Evaluation Metrics (Overall) ===")
+        print(f"{'='*60}")
+        print(f"TAR (Task Completion Rate): {self.TAR:.4f} ({self.completed_episodes_count}/{self.unerror_episodes_total})")
+        print(f"KSAR (Key Subtask Completion Rate): {self.KSAR:.4f} ({self.completed_key_subtasks}/{self.key_subtasks_total})")
+        print(f"Widget Hit Rate: {self.widget_hit_rate:.4f} ({self.recognized_pages_with_widget_assertions_and_evidence_widget_hits}/{self.recognized_pages_with_widget_assertions})")
+        print(f"Avg Actions Pos for Finished Key Subtask: {self.average_actions_pos_for_finished_key_subtask:.4f}")
         print(f"\nPage-level Metrics:")
         print(f"  Precision: {page_precision:.4f} ({self.pages_annotated_hit}/{self.pages_gen_total})")
         print(f"  Recall:    {page_recall:.4f} ({self.pages_annotated_hit}/{self.pages_annotated_total})")
@@ -634,6 +883,31 @@ class TestbedEvaluator(BaseEvaluator):
         print(f"  Recall:    {assertion_recall:.4f} ({self.assertion_states_annotated_hit}/{self.assertion_states_annotated_total})")
         print(f"  Accuracy:  {assertion_accuracy:.4f} ({self.assertion_states_annotated_hit + self.assertion_states_no_annotation_nor_gen_total}/{self.assertion_states_exec_total})")
         print(f"  F1-Score:  {assertion_f1:.4f}")
+        
+        print(f"\n{'='*60}")
+        print(f"=== Metrics by Difficulty ===")
+        print(f"{'='*60}")
+        print(f"\n--- Easy (gr_trace_len < 4) ---")
+        print(f"TAR: {self.TAR_easy:.4f} ({self.completed_episodes_count_easy}/{self.unerror_episodes_total_easy})")
+        print(f"KSAR: {self.KSAR_easy:.4f} ({self.completed_key_subtasks_easy}/{self.key_subtasks_total_easy})")
+        print(f"Widget Hit Rate: {self.widget_hit_rate_easy:.4f} ({self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_easy}/{self.recognized_pages_with_widget_assertions_easy})")
+        print(f"Avg Actions Pos: {self.average_actions_pos_for_finished_key_subtask_easy:.4f}")
+        print(f"Page P/R/A/F1: {page_precision_easy:.4f}/{page_recall_easy:.4f}/{page_accuracy_easy:.4f}/{page_f1_easy:.4f}")
+        
+        print(f"\n--- Mid (4 <= gr_trace_len < 8) ---")
+        print(f"TAR: {self.TAR_mid:.4f} ({self.completed_episodes_count_mid}/{self.unerror_episodes_total_mid})")
+        print(f"KSAR: {self.KSAR_mid:.4f} ({self.completed_key_subtasks_mid}/{self.key_subtasks_total_mid})")
+        print(f"Widget Hit Rate: {self.widget_hit_rate_mid:.4f} ({self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_mid}/{self.recognized_pages_with_widget_assertions_mid})")
+        print(f"Avg Actions Pos: {self.average_actions_pos_for_finished_key_subtask_mid:.4f}")
+        print(f"Page P/R/A/F1: {page_precision_mid:.4f}/{page_recall_mid:.4f}/{page_accuracy_mid:.4f}/{page_f1_mid:.4f}")
+        
+        print(f"\n--- Hard (gr_trace_len >= 8) ---")
+        print(f"TAR: {self.TAR_hard:.4f} ({self.completed_episodes_count_hard}/{self.unerror_episodes_total_hard})")
+        print(f"KSAR: {self.KSAR_hard:.4f} ({self.completed_key_subtasks_hard}/{self.key_subtasks_total_hard})")
+        print(f"Widget Hit Rate: {self.widget_hit_rate_hard:.4f} ({self.recognized_pages_with_widget_assertions_and_evidence_widget_hits_hard}/{self.recognized_pages_with_widget_assertions_hard})")
+        print(f"Avg Actions Pos: {self.average_actions_pos_for_finished_key_subtask_hard:.4f}")
+        print(f"Page P/R/A/F1: {page_precision_hard:.4f}/{page_recall_hard:.4f}/{page_accuracy_hard:.4f}/{page_f1_hard:.4f}")
+        
         print(f"\nMetrics saved to: {filename}")
         
     # 69947946018315292528: 图片和VH有差别，但是img，VH都匹配; 另外uicomponent应该匹配但是没匹配
@@ -774,7 +1048,7 @@ class TestbedEvaluator(BaseEvaluator):
                 if node_id < len(exec_trace):
                     exec_ui_state = exec_trace[node_id]
         
-        # 如果有click匹配状态，继续向前检查
+        # 如果有click匹配状态，需要向前检查，因为在点击事件中，页面状态的断言必须出现在点击事件之前的Oracle事件中
         if click_match_states:
             node_id_back = node_id - 1
             exec_ui_state_back = exec_trace[node_id_back]
@@ -862,7 +1136,7 @@ class TestbedEvaluator(BaseEvaluator):
             assertion_states_gen_total=tmp_assertion_states_gen_total,
             assertion_states_annotated_total=tmp_assertion_states_annotated_total,
             assertion_states_annotated_hit=tmp_assertion_states_annotated_hit,
-            is_assert_set=False # 都会向前一个直到上个事件不是oracle
+            is_assert_widget_set=uicomponent_set # 是否为组件相关的断言
         )
         # 如果当前执行状态的action不是OracleEvent，while循环未执行，node_id未变化
         # 则需要手动将node_id加1，确保继续处理下一个节点; 如果当前执行状态的action是OracleEvent，while循环执行后node_id指向有非OracleEvent的原匹配页面，需要指向下一个非OracleEvent的新页面，仍需再加1

@@ -1,0 +1,78 @@
+
+% TAR & KSAR Tables - Split into 3 Groups
+% Group 1: VASSODroid vs Baselines (RQ1 - Effectiveness)
+% Group 2: Ablation Study (RQ3)
+% Group 3: Strategy Comparison (V3 vs V3.2, Follow-and-Adapt vs First-Follow)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 1: VASSODroid vs Baselines (RQ1 - Effectiveness Comparison)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[t]
+  \centering
+  \caption{Task and Key Subtask Accomplishment Assessment (RQ1)}
+  \resizebox{\textwidth}{!}{
+    \begin{tabular}{l|rrrr|rrrr}
+    \toprule
+    \textbf{Approach} & \multicolumn{4}{c|}{\textbf{TAR (\%)}} & \multicolumn{4}{c}{\textbf{KSAR (\%)}} \\
+    \cmidrule(lr){2-5} \cmidrule(lr){6-9}
+     & \textbf{Overall} & \textbf{Easy} & \textbf{Medium} & \textbf{Hard} & \textbf{Overall} & \textbf{Easy} & \textbf{Medium} & \textbf{Hard} \\
+    \midrule
+    \toolNameSmall{} & 20.65 & 50.00 & 21.17 & 13.39 & 20.36 & 50.00 & 21.26 & 13.24 \\
+    AutoDroid & 14.00 & 45.45 & 13.58 & 9.01 & 13.55 & 45.45 & 13.58 & 8.21 \\
+    \midrule
+    Auto-UI & 4.44 & 4.95 & 4.19 & 4.82 & - & - & - & - \\
+    AppAgent & 10.91 & 16.83 & 10.97 & 3.61 & - & - & - & - \\
+    CoCo-Agent & 4.47 & 7.92 & 3.91 & 2.41 & - & - & - & - \\
+    \bottomrule
+    \end{tabular}%
+  }
+  \label{tab:tar-ksar-rq1}%
+\end{table}%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 2: Ablation Study (RQ3)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[t]
+  \centering
+  \caption{Task and Key Subtask Accomplishment Assessment (Ablation Study)}
+  \resizebox{\textwidth}{!}{
+    \begin{tabular}{l|rrrr|rrrr}
+    \toprule
+    \textbf{Approach} & \multicolumn{4}{c|}{\textbf{TAR (\%)}} & \multicolumn{4}{c}{\textbf{KSAR (\%)}} \\
+    \cmidrule(lr){2-5} \cmidrule(lr){6-9}
+     & \textbf{Overall} & \textbf{Easy} & \textbf{Medium} & \textbf{Hard} & \textbf{Overall} & \textbf{Easy} & \textbf{Medium} & \textbf{Hard} \\
+    \midrule
+    \toolNameSmall{} & 20.65 & 50.00 & 21.17 & 13.39 & 20.36 & 50.00 & 21.26 & 13.24 \\
+    \toolNameSmall{} w/o VASSO & 18.08 & 54.55 & 17.18 & 13.51 & 17.79 & 54.55 & 17.19 & 13.33 \\
+    \toolNameSmall{} w/o Interaction Validation & 16.78 & 45.45 & 16.62 & 11.61 & 16.24 & 45.45 & 16.43 & 11.03 \\
+    \bottomrule
+    \end{tabular}%
+  }
+  \label{tab:tar-ksar-ablation}%
+\end{table}%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 3: Strategy Comparison (Follow-and-Adapt vs First-Follow, V3 vs V3.2)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[t]
+  \centering
+  \caption{Task and Key Subtask Accomplishment Assessment (Strategy Comparison)}
+  \resizebox{\textwidth}{!}{
+    \begin{tabular}{l|rrrr|rrrr}
+    \toprule
+    \textbf{Approach} & \multicolumn{4}{c|}{\textbf{TAR (\%)}} & \multicolumn{4}{c}{\textbf{KSAR (\%)}} \\
+    \cmidrule(lr){2-5} \cmidrule(lr){6-9}
+     & \textbf{Overall} & \textbf{Easy} & \textbf{Medium} & \textbf{Hard} & \textbf{Overall} & \textbf{Easy} & \textbf{Medium} & \textbf{Hard} \\
+    \midrule
+    \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 20.65 & 50.00 & 21.17 & 13.39 & 20.36 & 50.00 & 21.26 & 13.24 \\
+    \toolNameSmall{}-Follow and Adapt In Time (V3) & 22.15 & 50.00 & 22.94 & 14.66 & 21.44 & 50.00 & 22.35 & 14.79 \\
+    \toolNameSmall{}-First Follow then Adapt (V3.2) & 19.77 & 52.38 & 21.10 & 9.43 & 19.79 & 52.38 & 21.28 & 10.77 \\
+    \toolNameSmall{}-First Follow then Adapt (V3) & 19.70 & 45.45 & 19.76 & 14.66 & 19.96 & 45.45 & 20.45 & 14.79 \\
+    \bottomrule
+    \end{tabular}%
+  }
+  \label{tab:tar-ksar-strategy}%
+\end{table}%

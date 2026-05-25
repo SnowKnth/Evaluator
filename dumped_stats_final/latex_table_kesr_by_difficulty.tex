@@ -1,0 +1,220 @@
+% KESR Tables by Difficulty Level - Split into 3 Groups
+% Group 1: VASSODroid vs AutoDroid (RQ1 - Effectiveness)
+% Group 2: Ablation Study (RQ3)
+% Group 3: Strategy Comparison (V3 vs V3.2, Follow-and-Adapt vs First-Follow)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 1: VASSODroid vs AutoDroid (RQ1 - Effectiveness Comparison)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Overall (RQ1)}
+  \label{tab:kesr-rq1-overall}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 42.11 & 50.49 & 36.11 & 84.95 & 52 & 92 & 51 & 755 \\
+      AutoDroid & 31.71 & 38.24 & 27.08 & 77.51 & 26 & 70 & 42 & 360 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Easy (RQ1)}
+  \label{tab:kesr-rq1-easy}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 47.62 & 45.45 & 50.00 & 82.26 & 5 & 5 & 6 & 46 \\
+      AutoDroid & 30.00 & 30.00 & 30.00 & 73.08 & 3 & 7 & 7 & 35 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Medium (RQ1)}
+  \label{tab:kesr-rq1-mid}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 46.59 & 55.41 & 40.20 & 86.65 & 41 & 61 & 33 & 569 \\
+      AutoDroid & 34.71 & 44.68 & 28.38 & 80.20 & 21 & 53 & 26 & 299 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Hard (RQ1)}
+  \label{tab:kesr-rq1-hard}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 24.00 & 33.33 & 18.75 & 79.35 & 6 & 26 & 12 & 140 \\
+      AutoDroid & 17.39 & 18.18 & 16.67 & 59.57 & 2 & 10 & 9 & 26 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 2: Ablation Study (RQ3)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Overall (Ablation Study)}
+  \label{tab:kesr-ablation-overall}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 42.11 & 50.49 & 36.11 & 84.95 & 52 & 92 & 51 & 755 \\
+      \toolNameSmall{} w/o VASSO & 10.91 & 6.67 & 30.00 & 80.63 & 6 & 14 & 84 & 402 \\
+      \toolNameSmall{} w/o Interaction Validation & 48.04 & 59.76 & 40.16 & 84.18 & 49 & 73 & 33 & 515 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Easy (Ablation Study)}
+  \label{tab:kesr-ablation-easy}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 47.62 & 45.45 & 50.00 & 82.26 & 5 & 5 & 6 & 46 \\
+      \toolNameSmall{} w/o VASSO & 40.00 & 25.00 & 100.00 & 76.32 & 3 & 0 & 9 & 26 \\
+      \toolNameSmall{} w/o Interaction Validation & 52.63 & 50.00 & 55.56 & 84.48 & 5 & 4 & 5 & 44 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Medium (Ablation Study)}
+  \label{tab:kesr-ablation-mid}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 46.59 & 55.41 & 40.20 & 86.65 & 41 & 61 & 33 & 569 \\
+      \toolNameSmall{} w/o VASSO & 5.48 & 3.33 & 15.38 & 80.06 & 2 & 11 & 58 & 275 \\
+      \toolNameSmall{} w/o Interaction Validation & 54.17 & 68.42 & 44.83 & 85.78 & 39 & 48 & 18 & 359 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Hard (Ablation Study)}
+  \label{tab:kesr-ablation-hard}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{} & 24.00 & 33.33 & 18.75 & 79.35 & 6 & 26 & 12 & 140 \\
+      \toolNameSmall{} w/o VASSO & 9.09 & 5.56 & 25.00 & 83.61 & 1 & 3 & 17 & 101 \\
+      \toolNameSmall{} w/o Interaction Validation & 24.39 & 33.33 & 19.23 & 79.05 & 5 & 21 & 10 & 112 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUP 3: Strategy Comparison (Follow-and-Adapt vs First-Follow, V3 vs V3.2)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Overall (Strategy Comparison)}
+  \label{tab:kesr-strategy-overall}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 42.11 & 50.49 & 36.11 & 84.95 & 52 & 92 & 51 & 755 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 44.84 & 57.27 & 36.84 & 82.06 & 63 & 108 & 47 & 646 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 51.79 & 68.42 & 41.67 & 80.88 & 65 & 91 & 30 & 447 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 47.88 & 60.19 & 39.74 & 83.44 & 62 & 94 & 41 & 618 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Easy (Strategy Comparison)}
+  \label{tab:kesr-strategy-easy}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 47.62 & 45.45 & 50.00 & 82.26 & 5 & 5 & 6 & 46 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 71.43 & 90.91 & 58.82 & 87.50 & 10 & 7 & 1 & 46 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 66.67 & 81.82 & 56.25 & 85.00 & 9 & 7 & 2 & 42 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 66.67 & 70.00 & 63.64 & 90.14 & 7 & 4 & 3 & 57 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Medium (Strategy Comparison)}
+  \label{tab:kesr-strategy-mid}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 46.59 & 55.41 & 40.20 & 86.65 & 41 & 61 & 33 & 569 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 43.22 & 55.13 & 35.54 & 82.72 & 43 & 78 & 35 & 498 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 53.68 & 72.86 & 42.50 & 81.40 & 51 & 69 & 19 & 334 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 50.81 & 65.28 & 41.59 & 83.84 & 47 & 66 & 25 & 425 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Key Essential State Recognition (KESR) - Hard (Strategy Comparison)}
+  \label{tab:kesr-strategy-hard}
+  \resizebox{\columnwidth}{!}{
+    \begin{tabular}{l|r|r|r|r!{\vrule width 0.8pt}r|r|r|r}
+      \toprule
+      \textbf{Approach} & \textbf{F1} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
+      \midrule
+      \toolNameSmall{}-Follow and Adapt In Time (V3.2) & 24.00 & 33.33 & 18.75 & 79.35 & 6 & 26 & 12 & 140 \\
+      \toolNameSmall{}-Follow and Adapt In Time (V3) & 37.04 & 47.62 & 30.30 & 76.71 & 10 & 23 & 11 & 102 \\
+      \toolNameSmall{}-First Follow then Adapt (V3.2) & 29.41 & 35.71 & 25.00 & 76.00 & 5 & 15 & 9 & 71 \\
+      \toolNameSmall{}-First Follow then Adapt (V3) & 30.19 & 38.10 & 25.00 & 79.56 & 8 & 24 & 13 & 136 \\
+      \bottomrule
+    \end{tabular}
+  }
+\end{table}

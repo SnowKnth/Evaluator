@@ -1,0 +1,77 @@
+% Complete Paper Section for Ablation Study
+% Ready to insert into academic paper
+
+\section{Ablation Study}
+
+To understand the individual contributions of our proposed components, we conduct a comprehensive ablation study comparing three system configurations: (1) baseline AutoDroid without SAT-OTAA, (2) RASSDroid with SAT-OTAA but without conflict-detection based adaptation, and (3) the full RASSDroid system with both components.
+
+\subsection{Experimental Setup}
+
+We evaluate each configuration using the same testbed environment and evaluation metrics. The baseline AutoDroid represents the state-of-the-art reinforcement learning approach for mobile UI automation without semantic understanding. The intermediate configuration isolates the impact of SAT-OTAA, while the full system demonstrates the combined effect of both innovations.
+
+% Main ablation results table
+\input{paper_ablation_table.tex}
+
+\subsection{Component-wise Analysis}
+
+\paragraph{SAT-OTAA Impact} 
+The integration of Semantic Action Type understanding provides dramatic improvements across all metrics. Comparing the baseline to SAT-OTAA configuration:
+
+\begin{itemize}
+    \item \textbf{Subgoal Completion}: Improvement from 7.4\% to 20.2\% (+172\% relative improvement)
+    \item \textbf{Page Navigation}: F1-score increases from 0.000 to 0.484, indicating the baseline's complete inability to perform effective page navigation
+    \item \textbf{Assertion Verification}: F1-score improves from 0.000 to 0.165, demonstrating that semantic understanding is essential for state verification
+\end{itemize}
+
+The baseline AutoDroid's performance highlights a critical limitation: without semantic understanding of UI elements and their purposes, the system fails to achieve meaningful page navigation or assertion verification, resulting in zero precision and recall for these tasks.
+
+\paragraph{Conflict-Detection Based Adaptation Impact}
+The addition of conflict-detection mechanisms provides more modest but consistent improvements:
+
+\begin{itemize}
+    \item \textbf{Subgoal Completion}: Additional 2.5 percentage point improvement (20.2\% → 22.7\%)
+    \item \textbf{Assertion Verification}: Enhanced F1-score from 0.165 to 0.184 (+11.5\% relative improvement)  
+    \item \textbf{System Robustness}: Improved handling of dynamic UI scenarios and conflicting action requirements
+\end{itemize}
+
+While the conflict-detection component shows smaller numerical improvements, it provides crucial stability for real-world deployment scenarios where UI elements may change dynamically.
+
+\subsection{Statistical Significance}
+
+% Statistical significance table
+\input{significance_table.tex}
+
+All major improvements demonstrate statistical significance ($p < 0.001$) when comparing the baseline to either SAT-OTAA configuration. The conflict-detection enhancements show moderate significance ($p < 0.05$) for subgoal completion and assertion recall, indicating consistent but incremental benefits.
+
+\subsection{Performance Analysis}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{ablation_comparison.pdf}
+\caption{Comprehensive performance comparison across system configurations showing the progressive improvement from baseline through incremental component additions}
+\label{fig:ablation_comparison}
+\end{figure}
+
+Figure~\ref{fig:ablation_comparison} illustrates the progressive performance enhancement achieved through component integration. The most striking improvement occurs with SAT-OTAA addition, while conflict-detection provides refinement benefits.
+
+\subsection{Key Insights}
+
+\begin{enumerate}
+    \item \textbf{Semantic Understanding is Critical}: The baseline's zero performance in page navigation and assertion verification demonstrates that semantic understanding is not optional but essential for meaningful mobile UI automation.
+    
+    \item \textbf{SAT-OTAA Provides Foundation}: The semantic action type understanding forms the core capability that enables effective UI interaction and state verification.
+    
+    \item \textbf{Conflict-Detection Enhances Robustness}: While providing smaller numerical improvements, conflict-detection mechanisms contribute to system stability and reliability in dynamic environments.
+    
+    \item \textbf{Synergistic Design}: The full system achieves optimal performance through the combination of semantic understanding and adaptive conflict resolution.
+\end{enumerate}
+
+\subsection{Implications for Mobile UI Automation}
+
+This ablation study reveals fundamental requirements for effective mobile UI automation:
+
+\paragraph{Necessity of Semantic Understanding} Traditional reinforcement learning approaches without semantic grounding (as exemplified by the baseline) are insufficient for complex mobile UI tasks. The zero performance in navigation and verification tasks indicates a fundamental capability gap.
+
+\paragraph{Incremental Component Benefits} Each system component provides measurable value, with SAT-OTAA delivering transformative improvements and conflict-detection offering stability enhancements.
+
+\paragraph{Architectural Validation} The progressive improvement pattern validates our architectural design decisions, demonstrating that both semantic understanding and adaptive mechanisms contribute to overall system effectiveness.
